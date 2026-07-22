@@ -3,21 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>India NAS Insights</title>
+    <title>NAS — The Ledger</title>
     <meta name="description" content="India National Accounts Statistics (NAS) Insights Dashboard" />
-    <meta name="author" content="Data Engineering Portfolio" />
-
-    <meta property="og:title" content="India NAS Insights" />
-    <meta property="og:description" content="India National Accounts Statistics (NAS) Insights Dashboard" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/favicon.ico" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@portfolio" />
-    <meta name="twitter:image" content="/favicon.ico" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
 
   <body>
+    <svg width="0" height="0" style="position:absolute">
+      <filter id="goo">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+        <feColorMatrix in="blur" mode="matrix"
+          values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo" />
+        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

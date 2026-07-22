@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { loadNASData, getSectoralGVA, NASRecord } from "@/lib/data-utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BrutalistCard } from "@/components/ui/brutal/BrutalistCard";
+import { BrutalistPill } from "@/components/ui/brutal/BrutalistPill";
 import {
   BarChart, Bar, PieChart, Pie, Cell, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
-const COLORS = ["#0ea5e9", "#ec4899", "#34d399", "#f59e0b", "#a78bfa", "#f87171", "#2dd4bf", "#c084fc", "#4ade80"];
+const CATEGORICAL_COLORS = ["var(--volt)", "var(--credit)", "var(--debit)", "#a855f7", "#ec4899", "#f97316", "#eab308", "#0ea5e9", "#14b8a6"];
+const ANIM_DUR = 800;
+const ANIM_EASE = "ease-out";
 
 export default function SectoralView() {
   const [data, setData] = useState<NASRecord[]>([]);
@@ -22,8 +23,8 @@ export default function SectoralView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-[60vh] bg-transparent">
+        <div className="w-12 h-12 border-4 border-ink border-t-volt rounded-full animate-spin" />
       </div>
     );
   }
@@ -56,97 +57,106 @@ export default function SectoralView() {
     return row;
   });
 
+  const tooltipStyle = {
+    backgroundColor: 'var(--paper)',
+    border: '3px solid var(--ink)',
+    borderRadius: '0px',
+    color: 'var(--ink)',
+    fontFamily: '"IBM Plex Mono", monospace',
+    boxShadow: '4px 4px 0 var(--ink)',
+    fontWeight: '600'
+  };
+
+  const inkColor = 'var(--ink)';
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-heading font-bold">Sectoral View</h1>
-        <p className="text-muted-foreground text-sm mt-1">Industry-wise Gross Value Added analysis across sectors</p>
+    <div className="w-full px-[6vw] py-12 bg-transparent text-ink pb-32 relative z-10">
+      <div className="mb-12 pt-8">
+        <div className="eyebrow mb-6">INDUSTRY BREAKDOWN</div>
+        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Sectoral View</h1>
+        <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
+          Industry-wise Gross Value Added analysis across sectors
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-4">
-        <Tabs value={baseYear} onValueChange={setBaseYear} className="w-fit">
-          <TabsList>
-            <TabsTrigger value="2011-12">Base 2011-12</TabsTrigger>
-            <TabsTrigger value="2022-23">Base 2022-23</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Select value={yearInt.toString()} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {availableYears.map(y => (
-              <SelectItem key={y} value={y.toString()}>FY {y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap gap-4 mb-12 items-center">
+        <BrutalistPill active={baseYear === "2011-12"} onClick={() => setBaseYear("2011-12")}>BASE 2011-12</BrutalistPill>
+        <BrutalistPill active={baseYear === "2022-23"} onClick={() => setBaseYear("2022-23")}>BASE 2022-23</BrutalistPill>
+        
+        <select 
+          value={yearInt.toString()} 
+          onChange={(e) => setSelectedYear(e.target.value)}
+          className="border-[3px] border-ink bg-paper text-ink font-numbers font-bold text-sm px-4 py-2 outline-none focus:bg-volt focus:text-paper shadow-[4px_4px_0_var(--ink)] cursor-pointer"
+        >
+          {availableYears.map(y => (
+            <option key={y} value={y.toString()}>FY {y}</option>
+          ))}
+        </select>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="card-glow">
-          <CardHeader><CardTitle className="font-heading text-lg">🏭 GVA by Sector — FY {yearInt}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={sectoralGVA} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={v => `₹${v.toFixed(0)}`} />
-                <YAxis type="category" dataKey="industry" width={150} stroke="hsl(var(--muted-foreground))" fontSize={9} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [`₹${v.toFixed(1)} K Cr`]} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {sectoralGVA.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      <div className="grid lg:grid-cols-2 gap-8">
+        <BrutalistCard delay={0.1}>
+          <h3 className="font-heading font-bold text-xl mb-6 uppercase">🏭 GVA by Sector — FY {yearInt}</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={sectoralGVA} layout="vertical" margin={{ left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} horizontal={false} />
+              <XAxis type="number" stroke={inkColor} fontSize={11} tickFormatter={v => `₹${v.toFixed(0)}`} fontFamily='"IBM Plex Mono", monospace' />
+              <YAxis type="category" dataKey="industry" width={150} stroke={inkColor} fontSize={10} fontFamily='"IBM Plex Mono", monospace' />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${v.toFixed(1)} K Cr`, '']} />
+              <Bar animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} dataKey="value" stroke={inkColor} strokeWidth={2}>
+                {sectoralGVA.map((_, i) => <Cell key={i} fill={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
 
-        <Card className="card-glow">
-          <CardHeader><CardTitle className="font-heading text-lg">🕸️ Sector Radar</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis dataKey="sector" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} />
-                <PolarRadiusAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }} />
-                <Radar name="GVA Share" dataKey="value" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.3} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
-              </RadarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <BrutalistCard delay={0.2}>
+          <h3 className="font-heading font-bold text-xl mb-6 uppercase">🕸️ Sector Radar</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+              <PolarGrid stroke={inkColor} opacity={0.2} />
+              <PolarAngleAxis dataKey="sector" tick={{ fill: inkColor, fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }} />
+              <PolarRadiusAxis tick={{ fill: inkColor, fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }} angle={30} domain={[0, 100]} />
+              <Radar animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} name="GVA Share" dataKey="value" stroke="var(--volt)" strokeWidth={3} fill="var(--volt)" fillOpacity={0.15} />
+              <Tooltip contentStyle={tooltipStyle} />
+            </RadarChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
 
-        <Card className="card-glow">
-          <CardHeader><CardTitle className="font-heading text-lg">🥧 Economy Composition</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie data={sectoralGVA} cx="50%" cy="50%" outerRadius={140} innerRadius={60} dataKey="value" nameKey="industry" label={({ percent }) => `${(percent * 100).toFixed(0)}%`}>
-                  {sectoralGVA.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} formatter={(v: number) => [`₹${v.toFixed(1)} K Cr`]} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <BrutalistCard delay={0.3}>
+          <h3 className="font-heading font-bold text-xl mb-6 uppercase">🥧 Economy Composition</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie 
+                animationDuration={ANIM_DUR} animationEasing={ANIM_EASE}
+                data={sectoralGVA} cx="50%" cy="50%" outerRadius={140} innerRadius={60} dataKey="value" nameKey="industry" 
+                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                stroke={inkColor} strokeWidth={2}
+                className="font-numbers text-[10px]"
+              >
+                {sectoralGVA.map((_, i) => <Cell key={i} fill={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${v.toFixed(1)} K Cr`, '']} />
+              <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
 
-        <Card className="card-glow">
-          <CardHeader><CardTitle className="font-heading text-lg">📊 Multi-Year Comparison (Last 5 Years)</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={multiYearData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={10} />
-                <YAxis type="category" dataKey="industry" width={130} stroke="hsl(var(--muted-foreground))" fontSize={9} />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }} />
-                <Legend />
-                {compareYears.map((y, i) => (
-                  <Bar key={y} dataKey={`FY${y}`} fill={COLORS[i % COLORS.length]} radius={[0, 2, 2, 0]} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <BrutalistCard delay={0.4}>
+          <h3 className="font-heading font-bold text-xl mb-6 uppercase">📊 Multi-Year Comparison (Last 5 Years)</h3>
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={multiYearData} layout="vertical" margin={{ left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} horizontal={false} />
+              <XAxis type="number" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
+              <YAxis type="category" dataKey="industry" width={130} stroke={inkColor} fontSize={10} fontFamily='"IBM Plex Mono", monospace' />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+              {compareYears.map((y, i) => (
+                <Bar animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} key={y} dataKey={`FY${y}`} fill={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} stroke={inkColor} strokeWidth={1} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
       </div>
     </div>
   );

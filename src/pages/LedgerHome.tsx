@@ -1,146 +1,121 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { ArrowRight, BookOpen, TrendingDown, Layers, Database, IndianRupee, TrendingUp } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, FileText, BarChart3, PieChart } from "lucide-react";
 import { loadNASData, getKPISummary, formatIndianNumber } from "@/lib/data-utils";
+import { BrutalistCard } from "@/components/ui/brutal/BrutalistCard";
 
-function AnimatedOdometer({ value }: { value: number }) {
-  const count = useMotionValue(0);
-  const displayValue = useTransform(count, (latest) => formatIndianNumber(latest, 1));
-
-  useEffect(() => {
-    // Start from a reasonable base (like 1994's GDP) to make the animation span dramatic
-    const controls = animate(count, value, { 
-      duration: 3, 
-      ease: "easeOut",
-      delay: 0.2
-    });
-    return controls.stop;
-  }, [value]);
-
-  return <motion.span>{displayValue}</motion.span>;
-}
+// Odometer-style digit component
+const AnimatedDigitStrip = ({ value }: { value: number }) => {
+  const digits = value.toFixed(0).split('');
+  return (
+    <div className="flex bg-ink text-paper px-4 py-2 border-4 border-ink shadow-[8px_8px_0_var(--volt)]">
+      {digits.map((digit, i) => (
+        <div key={i} className="relative h-[8rem] w-[5rem] overflow-hidden text-[8rem] leading-[1] font-heading font-black">
+          <div className="absolute top-0 left-0 animate-slide-up" style={{ animationDuration: `${1.5 + (i * 0.2)}s`, animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+            <div className="h-[8rem] text-volt/30 flex items-center justify-center">0</div>
+            <div className="h-[8rem] text-credit/30 flex items-center justify-center">5</div>
+            <div className="h-[8rem] flex items-center justify-center">{digit}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function LedgerHome() {
-  const [kpiData, setKpiData] = useState<any>(null);
+  const [kpiData, setKpiData] = useState<ReturnType<typeof getKPISummary> | null>(null);
+  const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadNASData().then(data => {
+    loadNASData().then((data) => {
       setKpiData(getKPISummary(data));
     });
   }, []);
 
   return (
-    <div className="min-h-screen w-full bg-background bg-ledger-pattern font-body relative overflow-x-hidden">
-      
-      {/* Top Border Rule */}
-      <div className="w-full h-1 bg-primary/20 absolute top-0 left-0" />
-
-      <main className="container mx-auto px-4 md:px-8 pt-24 pb-32">
-        
-        {/* The Header / Odometer */}
-        <div className="flex flex-col items-center text-center mb-32 space-y-6">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-muted/50 rounded-full border border-border text-sm text-muted-foreground font-numbers mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>LIVE LEDGER FEED</span>
+    <div ref={containerRef} className="w-full">
+      <section className="hero-section min-h-[90vh] relative flex flex-col justify-center px-[6vw] pb-24 pt-32 border-b-[3px] border-ink">
+        <div className="relative z-10">
+          <div className="eyebrow mb-10">
+            <span className="w-2 h-2 mr-2 rounded-full bg-ink animate-pulse" />
+            LIVE LEDGER FEED
           </div>
 
-          <div className="flex flex-col items-center justify-center">
-            <div className="flex items-center space-x-4 md:space-x-8">
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-numbers font-bold text-foreground tracking-tighter flex items-center">
-                <IndianRupee className="w-12 h-12 md:w-20 md:h-20 lg:w-24 lg:h-24 text-muted-foreground/50 mr-2 md:mr-4" strokeWidth={3} />
-                {kpiData ? <AnimatedOdometer value={Number(kpiData.gdpCurrent)} /> : "0.0"}
-                <span className="text-2xl md:text-4xl text-muted-foreground ml-2 md:ml-4 tracking-normal">L Cr</span>
-              </h1>
-              
-              {kpiData && (
-                <div className={`hidden md:flex flex-col items-start p-3 rounded-lg border ${Number(kpiData.yoyGrowth) >= 0 ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                  <div className="text-xs font-bold tracking-widest uppercase mb-1">
-                    {Number(kpiData.yoyGrowth) >= 0 ? '+ CREDIT' : '- DEBIT'}
-                  </div>
-                  <div className="flex items-center font-numbers font-bold text-lg">
-                    {Number(kpiData.yoyGrowth) >= 0 ? <TrendingUp className="w-5 h-5 mr-1" /> : <TrendingDown className="w-5 h-5 mr-1" />}
-                    {Math.abs(Number(kpiData.yoyGrowth))}% YoY
-                  </div>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-wrap items-end gap-5 mt-10">
+            <span className="font-heading font-bold text-[clamp(3rem,9vw,7rem)] leading-[0.8]">₹</span>
             
-            <div className="text-sm md:text-base font-numbers tracking-widest text-muted-foreground/80 uppercase mt-6">
-              Latest Annual GDP (Current Prices)
-            </div>
+            {kpiData ? <AnimatedDigitStrip value={Number(kpiData.gdpCurrent)} /> : <div className="h-[11rem]" />}
+            
+            <span className="font-numbers font-semibold text-[clamp(1.2rem,2.4vw,1.8rem)] self-end mb-3">
+              L&nbsp;CR
+            </span>
+
+            {kpiData && (
+              <span className={`delta-chip ${Number(kpiData.yoyGrowth) >= 0 ? 'up' : 'down'}`}>
+                {Number(kpiData.yoyGrowth) >= 0 ? '+' : ''}{kpiData.yoyGrowth}% YoY
+              </span>
+            )}
+          </div>
+          
+          <div className="font-numbers text-sm uppercase tracking-wide mt-3 opacity-70">
+            LATEST ANNUAL GDP (CURRENT PRICES) — BASE YEAR 2011-12
           </div>
 
-          <div className="w-24 h-1 bg-primary/40 my-6" />
-
-          <p className="text-xl md:text-2xl text-muted-foreground font-heading max-w-2xl">
-            30 years of India's economy, decoded.
+          <p className="text-[clamp(1.4rem,2.6vw,2.1rem)] font-medium max-w-[32ch] mt-12 border-l-[3px] border-ink pl-5">
+            Thirty years of India's economy, decoded — one ledger entry at a time.
           </p>
         </div>
+      </section>
 
-        {/* The Entry Ledger */}
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center space-x-4 mb-8">
-            <div className="h-px bg-border flex-1" />
-            <h2 className="text-sm font-numbers tracking-widest text-muted-foreground uppercase">Ledger Entries</h2>
-            <div className="h-px bg-border flex-1" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            <Link to="/narrative" className="group">
-              <div className="h-full p-8 border-2 border-border bg-card/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:border-primary hover:shadow-lg relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-green-500 font-numbers text-sm font-bold bg-green-500/10 px-2 py-1 rounded">
-                  + CREDIT
-                </div>
-                <BookOpen className="w-8 h-8 text-muted-foreground mb-6 group-hover:text-primary transition-colors" />
-                <h3 className="text-2xl font-heading font-bold mb-2">1994 → 2024: The Long Arc</h3>
-                <p className="text-muted-foreground font-numbers text-sm">Review the historical trajectory of exponential growth.</p>
-                <div className="mt-8 flex items-center text-primary font-bold text-sm">
-                  READ ENTRY <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
-
-            <Link to="/narrative" className="group">
-              <div className="h-full p-8 border-2 border-border bg-card/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:border-red-500/50 hover:shadow-lg relative overflow-hidden">
-                <div className="absolute top-4 right-4 text-red-500 font-numbers text-sm font-bold bg-red-500/10 px-2 py-1 rounded">
-                  - DEBIT
-                </div>
-                <TrendingDown className="w-8 h-8 text-muted-foreground mb-6 group-hover:text-red-500 transition-colors" />
-                <h3 className="text-2xl font-heading font-bold mb-2">2020: The Shock</h3>
-                <p className="text-muted-foreground font-numbers text-sm">Analyze the unprecedented contraction during the pandemic.</p>
-                <div className="mt-8 flex items-center text-red-500 font-bold text-sm">
-                  READ ENTRY <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
-
-            <Link to="/narrative" className="group">
-              <div className="h-full p-8 border-2 border-border bg-card/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:border-primary hover:shadow-lg relative overflow-hidden">
-                <Layers className="w-8 h-8 text-muted-foreground mb-6 group-hover:text-primary transition-colors" />
-                <h3 className="text-2xl font-heading font-bold mb-2">Sector by Sector</h3>
-                <p className="text-muted-foreground font-numbers text-sm">Deconstruct the economy into its foundational industries.</p>
-                <div className="mt-8 flex items-center text-primary font-bold text-sm">
-                  READ ENTRY <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
-
-            <Link to="/dashboard" className="group">
-              <div className="h-full p-8 border-2 border-border bg-card/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:border-foreground hover:shadow-lg relative overflow-hidden bg-muted/30">
-                <Database className="w-8 h-8 text-muted-foreground mb-6 group-hover:text-foreground transition-colors" />
-                <h3 className="text-2xl font-heading font-bold mb-2">Explore the Raw Ledger</h3>
-                <p className="text-muted-foreground font-numbers text-sm">Skip the narrative and access the full interactive dashboard.</p>
-                <div className="mt-8 flex items-center text-foreground font-bold text-sm">
-                  ACCESS DATA <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
-
-          </div>
+      <section className="min-h-[80vh] relative flex flex-col justify-center px-[6vw] py-24 border-b-[3px] border-ink bg-paper">
+        <div className="font-numbers text-[0.85rem] tracking-[0.15em] uppercase border-b-[3px] border-ink pb-4 mb-12">
+          002 / Ledger Entries
         </div>
-      </main>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <BrutalistCard onClick={() => navigate('/narrative')}>
+            <span className="absolute -top-0.5 -right-0.5 font-numbers font-bold text-xs tracking-wider px-3 py-2 border-l-[3px] border-b-[3px] border-ink bg-credit text-ink">
+              + CREDIT
+            </span>
+            <span className="text-4xl mb-6 block">📖</span>
+            <h3 className="font-heading font-bold text-2xl mb-3 leading-tight">1994 → 2024: The Long Arc</h3>
+            <p className="text-[0.95rem] opacity-75 leading-relaxed">
+              Review the historical trajectory of exponential growth across three decades of national accounts.
+            </p>
+          </BrutalistCard>
+
+          <BrutalistCard delay={0.1} onClick={() => navigate('/dashboard')}>
+            <span className="absolute -top-0.5 -right-0.5 font-numbers font-bold text-xs tracking-wider px-3 py-2 border-l-[3px] border-b-[3px] border-ink bg-volt text-paper">
+              DATA
+            </span>
+            <span className="text-4xl mb-6 block">📈</span>
+            <h3 className="font-heading font-bold text-2xl mb-3 leading-tight">Macro Dashboard</h3>
+            <p className="text-[0.95rem] opacity-75 leading-relaxed">
+              Interact with the core ledger. GDP, GVA, and quarterly seasonality breakdowns.
+            </p>
+          </BrutalistCard>
+
+          <BrutalistCard delay={0.2} onClick={() => navigate('/gdp')}>
+            <span className="absolute -top-0.5 -right-0.5 font-numbers font-bold text-xs tracking-wider px-3 py-2 border-l-[3px] border-b-[3px] border-ink bg-paper text-ink">
+              DEEP DIVE
+            </span>
+            <span className="text-4xl mb-6 block">🔮</span>
+            <h3 className="font-heading font-bold text-2xl mb-3 leading-tight">5-Year Forecast</h3>
+            <p className="text-[0.95rem] opacity-75 leading-relaxed">
+              Algorithmic projection of future ledger entries using polynomial regression models.
+            </p>
+          </BrutalistCard>
+
+          <BrutalistCard delay={0.3} onClick={() => navigate('/sectors')}>
+            <span className="text-4xl mb-6 block">🏭</span>
+            <h3 className="font-heading font-bold text-2xl mb-3 leading-tight">Sectoral Breakdown</h3>
+            <p className="text-[0.95rem] opacity-75 leading-relaxed">
+              GVA analysis by industry. See how agriculture, manufacturing, and services shift over time.
+            </p>
+          </BrutalistCard>
+        </div>
+      </section>
     </div>
   );
 }

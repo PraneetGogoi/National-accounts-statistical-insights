@@ -28,7 +28,7 @@ export function InteractiveNarrative() {
   }, []);
 
   if (!data) {
-    return <div className="h-[80vh] w-full flex items-center justify-center">Loading Interactive Dashboard...</div>;
+    return <div className="h-[80vh] w-full flex items-center justify-center font-heading text-xl font-bold uppercase animate-pulse">Loading Interactive Dashboard...</div>;
   }
 
   // Filter out the last chapter (which was just a scroll transition marker)
@@ -37,19 +37,19 @@ export function InteractiveNarrative() {
   return (
     <div className="w-full flex flex-col h-[calc(100vh-3.5rem)] pt-6">
       <div className="text-center px-4 mb-4 flex-shrink-0">
-        <h1 className="text-3xl font-heading font-bold text-foreground">India's Economic Engine</h1>
-        <p className="text-muted-foreground">Select a card below to explore 30 years of economic transformation.</p>
+        <h1 className="text-3xl md:text-5xl font-heading font-bold text-ink uppercase tracking-tighter mb-2">India's Economic Engine</h1>
+        <p className="font-medium opacity-80 uppercase text-sm tracking-wider">Select a card below to explore 30 years of economic transformation.</p>
       </div>
 
       {/* Top Section: The Chart */}
-      <div className="flex-1 w-full min-h-0 relative z-0 pb-8 px-4 md:px-12">
-        <div className="w-full h-full rounded-2xl border border-border bg-card/30 overflow-hidden shadow-inner">
+      <div className="flex-1 w-full min-h-0 relative z-0 pb-8 px-4 md:px-12 mt-4">
+        <div className="w-full h-full border-[3px] border-ink bg-paper overflow-hidden shadow-[8px_8px_0_var(--ink)]">
           <DynamicChart activeChapter={activeChapter} data={data} />
         </div>
       </div>
 
       {/* Bottom Section: The Carousel */}
-      <div className="h-[280px] w-full flex-shrink-0 bg-muted/20 border-t border-border flex flex-col justify-center relative z-10 px-12 md:px-24">
+      <div className="h-[280px] w-full flex-shrink-0 bg-transparent border-t-[3px] border-ink flex flex-col justify-center relative z-10 px-12 md:px-24">
         <Carousel
           opts={{
             align: "start",
@@ -70,8 +70,8 @@ export function InteractiveNarrative() {
               </CarouselItem>
             ))}
           </CarouselContent>
-          <CarouselPrevious className="left-2 md:-left-12 bg-background" />
-          <CarouselNext className="right-2 md:-right-12 bg-background" />
+          <CarouselPrevious className="left-2 md:-left-12 bg-paper border-[3px] border-ink rounded-none text-ink hover:bg-volt hover:text-paper shadow-[4px_4px_0_var(--ink)]" />
+          <CarouselNext className="right-2 md:-right-12 bg-paper border-[3px] border-ink rounded-none text-ink hover:bg-volt hover:text-paper shadow-[4px_4px_0_var(--ink)]" />
         </Carousel>
       </div>
     </div>

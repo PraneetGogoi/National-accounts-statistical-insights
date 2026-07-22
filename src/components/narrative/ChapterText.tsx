@@ -9,7 +9,6 @@ interface ChapterTextProps {
 }
 
 export function ChapterText({ id, title, text, isActive, onHover }: ChapterTextProps) {
-  // Hide the last chapter since it's just a transition chapter from the old scrolly logic
   if (id === 6) return null;
 
   return (
@@ -20,17 +19,16 @@ export function ChapterText({ id, title, text, isActive, onHover }: ChapterTextP
     >
       <motion.div
         animate={{ 
-          opacity: isActive ? 1 : 0.4,
+          opacity: isActive ? 1 : 0.6,
           scale: isActive ? 1 : 0.95,
-          borderColor: isActive ? "hsl(var(--primary))" : "hsl(var(--border))"
         }}
         transition={{ duration: 0.3 }}
-        className="h-[220px] bg-background/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border-2 flex flex-col justify-start"
+        className={`h-[220px] bg-paper p-6 flex flex-col justify-start transition-all duration-300 ${isActive ? 'border-[3px] border-ink shadow-[6px_6px_0_var(--volt)] -translate-y-1 -translate-x-1' : 'border-[3px] border-ink/40'}`}
       >
-        <h2 className="text-xl font-heading font-bold text-foreground mb-3 line-clamp-1">
+        <h2 className="text-xl font-heading font-bold text-ink mb-3 line-clamp-1 uppercase">
           {title}
         </h2>
-        <p className="text-sm text-muted-foreground font-body leading-relaxed line-clamp-4">
+        <p className="text-sm font-medium leading-relaxed line-clamp-4 opacity-80">
           {text}
         </p>
       </motion.div>
