@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import datetime
 from sqlalchemy.orm import Session
-import redis
+import requests
 
 # Add the parent directory to the path so we can import from db
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -53,15 +53,7 @@ def detect_anomalies(df):
 
     return df
 
-def clear_cache():
-    try:
-        r = redis.Redis(host='localhost', port=6379, decode_responses=True)
-        keys = r.keys('fastapi-cache:*')
-        if keys:
-            r.delete(*keys)
-        print(f"Cleared {len(keys)} keys from Redis cache.")
-    except Exception as e:
-        print(f"Failed to clear Redis cache: {e}")
+
 
 def run_ingestion(filepath):
     db: Session = SessionLocal()
@@ -140,20 +132,19 @@ def run_ingestion(filepath):
         
         print("Ingestion completed successfully!")
         
-        # 1. Clear Caches
-        clear_cache()
-        
-        # 2. Trigger Prophet Model Retraining
+        # 1. Trigger Prophet Model Retraining
         print("Triggering background model retrain...")
         from api.routes.forecast import fit_and_save_prophet_model
         fit_and_save_prophet_model(db)
         
-        # 3. Publish to GraphQL Subscriptions (via Redis PubSub)
+        # 2. Publish to GraphQL Subscriptions (via internal REST API)
         try:
-            r = redis.Redis(host='localhost', port=6379, decode_responses=True)
-            r.publish("ledger_feed", f"New ingestion {audit_log.id} completed. Processed {rows_processed} rows.")
+            requests.post(
+                "http://localhost:8000/api/internal/publish",
+                json={"message": f"New ingestion {audit_log.id} completed. Processed {rows_processed} rows."}
+            )
         except Exception as e:
-            print(f"Failed to publish to redis: {e}")
+            print(f"Failed to publish to memory queue: {e}")
         
     except Exception as e:
         db.rollback()

@@ -1,12 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import strawberry
 from strawberry.fastapi import GraphQLRouter
-from fastapi_cache import FastAPICache
-from fastapi_cache.backends.redis import RedisBackend
-from fastapi_cache.decorator import cache
-from redis import asyncio as aioredis
 from typing import List, Optional
+import asyncio
 
 import sys
 import os
@@ -15,6 +12,9 @@ from db.database import SessionLocal, NasData
 from api.routes import forecast, anomalies
 import json
 import datetime
+
+# Global Memory Queue for Pub/Sub
+ledger_feed_queue = asyncio.Queue()
 
 # ----------------- GRAPHQL SCHEMA -----------------
 @strawberry.type
@@ -34,7 +34,6 @@ class NasRecordType:
 class Query:
     @strawberry.field
     def get_kpi_summary(self) -> List[NasRecordType]:
-        # A simple resolver to fetch GDP data
         db = SessionLocal()
         try:
             records = db.query(NasData).filter(
@@ -54,23 +53,15 @@ class Query:
         finally:
             db.close()
 
+from typing import List, Optional, AsyncGenerator
+
 @strawberry.type
 class Subscription:
     @strawberry.subscription
-    async def live_ledger_feed(self) -> strawberry.AsyncGenerator[str, None]:
-        import asyncio
-        from redis import asyncio as aioredis
-        r = aioredis.from_url("redis://localhost:6379", decode_responses=True)
-        pubsub = r.pubsub()
-        await pubsub.subscribe("ledger_feed")
-        
-        try:
-            async for message in pubsub.listen():
-                if message["type"] == "message":
-                    yield message["data"]
-        finally:
-            await pubsub.unsubscribe("ledger_feed")
-            await r.aclose()
+    async def live_ledger_feed(self) -> AsyncGenerator[str, None]:
+        while True:
+            message = await ledger_feed_queue.get()
+            yield message
 
 schema = strawberry.Schema(query=Query, subscription=Subscription)
 graphql_app = GraphQLRouter(schema)
@@ -80,7 +71,7 @@ app = FastAPI(title="NAS Backend API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -90,40 +81,31 @@ app.include_router(graphql_app, prefix="/graphql")
 app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
 app.include_router(anomalies.router, prefix="/api/anomalies", tags=["anomalies"])
 
-@app.on_event("startup")
-async def startup():
-    redis = aioredis.from_url("redis://localhost:6379", encoding="utf8", decode_responses=True)
-    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+@app.post("/api/internal/publish")
+async def publish_message(request: Request):
+    data = await request.json()
+    if 'message' in data:
+        await ledger_feed_queue.put(data['message'])
+    return {"status": "published"}
 
 @app.get("/")
 def read_root():
-    return {"message": "NAS Backend is running"}
+    return {"message": "NAS Backend is running (SQLite)"}
 
 @app.get("/health")
 def health_check():
-    health_status = {"status": "ok", "postgres": "ok", "redis": "ok", "prophet_model": "ok"}
+    health_status = {"status": "ok", "database": "ok", "prophet_model": "ok"}
     
-    # Check Postgres
+    # Check SQLite
     db = SessionLocal()
     try:
-        db.execute("SELECT 1")
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
     except Exception as e:
-        health_status["postgres"] = f"error: {str(e)}"
+        health_status["database"] = f"error: {str(e)}"
         health_status["status"] = "error"
     finally:
         db.close()
-        
-    # Check Redis
-    try:
-        r = aioredis.from_url("redis://localhost:6379", decode_responses=True)
-        # Note: aioredis from_url is lazy, need to ping but we're in sync route so we skip full ping here for simplicity
-        # or use sync redis
-        import redis as sync_redis
-        sr = sync_redis.Redis(host='localhost', port=6379)
-        sr.ping()
-    except Exception as e:
-        health_status["redis"] = f"error: {str(e)}"
-        health_status["status"] = "error"
         
     # Check Prophet
     from api.routes.forecast import META_PATH

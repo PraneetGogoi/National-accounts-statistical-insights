@@ -1,11 +1,17 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Numeric, Date, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-SQLALCHEMY_DATABASE_URL = "postgresql://postgres:password@localhost:5432/nas_db"
+# Create a local SQLite database in the backend directory
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "nas_data.db")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# For SQLite, check_same_thread=False is needed
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

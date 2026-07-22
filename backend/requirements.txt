@@ -1,11 +1,9 @@
 fastapi
 uvicorn
 sqlalchemy
-psycopg2-binary
 strawberry-graphql
-fastapi-cache2[redis]
-redis
 prophet
 pandas
 scipy
 joblib
+requests

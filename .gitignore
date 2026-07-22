@@ -10,3 +10,6 @@ dist-ssr
 .idea/
 coverage/
 *.ipynb
+*.db
+*.joblib
+prophet_meta.json
