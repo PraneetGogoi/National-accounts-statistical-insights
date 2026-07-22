@@ -12,7 +12,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db.database import SessionLocal, NasData
-from api.routes import forecast
+from api.routes import forecast, anomalies
+import json
+import datetime
 
 # ----------------- GRAPHQL SCHEMA -----------------
 @strawberry.type
@@ -52,7 +54,25 @@ class Query:
         finally:
             db.close()
 
-schema = strawberry.Schema(query=Query)
+@strawberry.type
+class Subscription:
+    @strawberry.subscription
+    async def live_ledger_feed(self) -> strawberry.AsyncGenerator[str, None]:
+        import asyncio
+        from redis import asyncio as aioredis
+        r = aioredis.from_url("redis://localhost:6379", decode_responses=True)
+        pubsub = r.pubsub()
+        await pubsub.subscribe("ledger_feed")
+        
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    yield message["data"]
+        finally:
+            await pubsub.unsubscribe("ledger_feed")
+            await r.aclose()
+
+schema = strawberry.Schema(query=Query, subscription=Subscription)
 graphql_app = GraphQLRouter(schema)
 
 # ----------------- FASTAPI APP -----------------
@@ -68,6 +88,7 @@ app.add_middleware(
 
 app.include_router(graphql_app, prefix="/graphql")
 app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
+app.include_router(anomalies.router, prefix="/api/anomalies", tags=["anomalies"])
 
 @app.on_event("startup")
 async def startup():
@@ -77,3 +98,43 @@ async def startup():
 @app.get("/")
 def read_root():
     return {"message": "NAS Backend is running"}
+
+@app.get("/health")
+def health_check():
+    health_status = {"status": "ok", "postgres": "ok", "redis": "ok", "prophet_model": "ok"}
+    
+    # Check Postgres
+    db = SessionLocal()
+    try:
+        db.execute("SELECT 1")
+    except Exception as e:
+        health_status["postgres"] = f"error: {str(e)}"
+        health_status["status"] = "error"
+    finally:
+        db.close()
+        
+    # Check Redis
+    try:
+        r = aioredis.from_url("redis://localhost:6379", decode_responses=True)
+        # Note: aioredis from_url is lazy, need to ping but we're in sync route so we skip full ping here for simplicity
+        # or use sync redis
+        import redis as sync_redis
+        sr = sync_redis.Redis(host='localhost', port=6379)
+        sr.ping()
+    except Exception as e:
+        health_status["redis"] = f"error: {str(e)}"
+        health_status["status"] = "error"
+        
+    # Check Prophet
+    from api.routes.forecast import META_PATH
+    try:
+        if os.path.exists(META_PATH):
+            with open(META_PATH, 'r') as f:
+                meta = json.load(f)
+                health_status["prophet_model"] = f"last_trained: {meta.get('last_trained')}"
+        else:
+            health_status["prophet_model"] = "not_trained"
+    except Exception as e:
+        health_status["prophet_model"] = f"error: {str(e)}"
+        
+    return health_status

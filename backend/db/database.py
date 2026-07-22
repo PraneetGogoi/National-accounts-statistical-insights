@@ -30,6 +30,7 @@ class NasData(Base):
     __tablename__ = "nas_data"
     id = Column(Integer, primary_key=True, index=True)
     revision_id = Column(Integer, ForeignKey("nas_data_revisions.revision_id"))
+    source_run_id = Column(Integer, ForeignKey("ingestion_audit_log.id"))
     base_year = Column(String(20))
     series = Column(String(50))
     year = Column(String(20))
@@ -44,6 +45,7 @@ class NasData(Base):
     constant_price = Column(Numeric)
     unit = Column(String(50))
     is_anomaly = Column(Boolean, default=False)
+    flagged_for_review = Column(Boolean, default=False)
     anomaly_score = Column(Numeric)
 
 def get_db():

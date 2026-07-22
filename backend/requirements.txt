@@ -8,3 +8,4 @@ redis
 prophet
 pandas
 scipy
+joblib

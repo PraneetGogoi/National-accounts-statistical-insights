@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS nas_data_revisions (
 CREATE TABLE IF NOT EXISTS nas_data (
     id SERIAL PRIMARY KEY,
     revision_id INTEGER REFERENCES nas_data_revisions(revision_id),
+    source_run_id INTEGER REFERENCES ingestion_audit_log(id),
     base_year VARCHAR(20),
     series VARCHAR(50),
     year VARCHAR(20),
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS nas_data (
     constant_price NUMERIC,
     unit VARCHAR(50),
     is_anomaly BOOLEAN DEFAULT FALSE,
+    flagged_for_review BOOLEAN DEFAULT FALSE,
     anomaly_score NUMERIC
 );
 
