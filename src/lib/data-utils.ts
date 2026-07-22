@@ -4,75 +4,89 @@ export interface NASRecord {
   year: string;
   indicator: string;
   frequency: string;
-  revision: string;
   industry: string;
-  subindustry: string;
-  institutional_sector: string;
+  subindustry?: string;
   quarter: string;
   current_price: number;
   constant_price: number;
   unit: string;
   year_int: number;
+  // Provenance and Anomaly additions
+  is_anomaly: boolean;
+  flagged_for_review: boolean;
+  source_run_id?: number;
+  ingestion_timestamp?: string;
+  source_file_hash?: string;
+}
+
+export interface IngestionStatus {
+  id: number;
+  timestamp: string;
+  rows_processed: number;
+  success: boolean;
+  source_file_hash: string;
+}
+
+export interface ForecastData {
+  ds: string;
+  yhat: number;
+  yhat_lower: number;
+  yhat_upper: number;
+}
+
+export interface BacktestData {
+  actuals: { ds: string; y: number }[];
+  forecasts: { ds: string; yhat: number; yhat_lower: number; yhat_upper: number }[];
 }
 
 let cachedData: NASRecord[] | null = null;
 
+const API_BASE = "http://localhost:8000/api";
+
 export async function loadNASData(): Promise<NASRecord[]> {
   if (cachedData) return cachedData;
   
-  const res = await fetch('/data/nas_data.csv');
-  const text = await res.text();
-  const lines = text.trim().split('\n');
-  const headers = lines[0].replace(/^\ufeff/, '').split(',');
-  
-  const records: NASRecord[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    if (values.length < headers.length) continue;
-    
-    const yearMatch = values[2]?.match(/^(\d{4})/);
-    const yearInt = yearMatch ? parseInt(yearMatch[1]) : 0;
-    
-    records.push({
-      base_year: values[0] || '',
-      series: values[1] || '',
-      year: values[2] || '',
-      indicator: values[3] || '',
-      frequency: values[4] || '',
-      revision: values[5] || '',
-      industry: values[6] || '',
-      subindustry: values[7] || '',
-      institutional_sector: values[8] || '',
-      quarter: values[9] || '',
-      current_price: parseFloat(values[10]) || 0,
-      constant_price: parseFloat(values[11]) || 0,
-      unit: values[12] || '',
-      year_int: yearInt,
-    });
+  try {
+    const res = await fetch(`${API_BASE}/data/all`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+    const records: NASRecord[] = await res.json();
+    cachedData = records;
+    return records;
+  } catch (error) {
+    console.error("Error loading NAS data from API:", error);
+    return [];
   }
-  
-  cachedData = records;
-  return records;
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
+export async function fetchIngestionStatus(): Promise<IngestionStatus | null> {
+  try {
+    const res = await fetch(`${API_BASE}/data/status`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
   }
-  result.push(current.trim());
-  return result;
+}
+
+export async function fetchForecast(periods = 4): Promise<ForecastData[]> {
+  try {
+    const res = await fetch(`${API_BASE}/forecast/gdp?periods=${periods}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.forecast || [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchBacktest(): Promise<BacktestData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/forecast/backtest`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 export function getGDPTrend(data: NASRecord[], baseYear = '2011-12') {

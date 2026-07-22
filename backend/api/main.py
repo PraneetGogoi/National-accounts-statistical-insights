@@ -8,7 +8,7 @@ import asyncio
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from db.database import SessionLocal, NasData
+from db.database import SessionLocal, NasData, IngestionAuditLog
 from api.routes import forecast, anomalies
 import json
 import datetime
@@ -91,6 +91,56 @@ async def publish_message(request: Request):
 @app.get("/")
 def read_root():
     return {"message": "NAS Backend is running (SQLite)"}
+
+@app.get("/api/data/status")
+def get_data_status():
+    db = SessionLocal()
+    try:
+        latest = db.query(IngestionAuditLog).order_by(IngestionAuditLog.timestamp.desc()).first()
+        if not latest:
+            return {"status": "No data ingested yet."}
+        return {
+            "id": latest.id,
+            "timestamp": latest.timestamp.isoformat() if latest.timestamp else None,
+            "rows_processed": latest.rows_processed,
+            "success": latest.success,
+            "source_file_hash": latest.source_file_hash,
+        }
+    finally:
+        db.close()
+
+@app.get("/api/data/all")
+def get_all_data():
+    db = SessionLocal()
+    try:
+        # Join with IngestionAuditLog to get provenance
+        results = db.query(NasData, IngestionAuditLog).outerjoin(
+            IngestionAuditLog, NasData.source_run_id == IngestionAuditLog.id
+        ).all()
+        
+        data = []
+        for row, audit in results:
+            data.append({
+                "base_year": row.base_year,
+                "series": row.series,
+                "year": row.year,
+                "year_int": row.year_int,
+                "indicator": row.indicator,
+                "frequency": row.frequency,
+                "industry": row.industry,
+                "quarter": row.quarter,
+                "current_price": float(row.current_price) if row.current_price is not None else 0.0,
+                "constant_price": float(row.constant_price) if row.constant_price is not None else 0.0,
+                "unit": row.unit,
+                "is_anomaly": row.is_anomaly,
+                "flagged_for_review": row.flagged_for_review,
+                "source_run_id": row.source_run_id,
+                "ingestion_timestamp": audit.timestamp.isoformat() if audit and audit.timestamp else None,
+                "source_file_hash": audit.source_file_hash if audit else None,
+            })
+        return data
+    finally:
+        db.close()
 
 @app.get("/health")
 def health_check():

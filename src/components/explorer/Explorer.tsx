@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { loadNASData, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, NASRecord, formatIndianNumber } from "@/lib/data-utils";
-import { IndianRupee, TrendingUp, BarChart3, Activity } from "lucide-react";
+import { loadNASData, fetchForecast, fetchIngestionStatus, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, NASRecord, ForecastData, IngestionStatus, formatIndianNumber } from "@/lib/data-utils";
+import { IndianRupee, TrendingUp, BarChart3, Activity, Clock } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine
 } from "recharts";
 import { BrutalistCard } from "@/components/ui/brutal/BrutalistCard";
 import { BrutalistPill } from "@/components/ui/brutal/BrutalistPill";
 import { StatBlock } from "@/components/ui/brutal/StatBlock";
+import { Switch } from "@/components/ui/switch";
 
 const CATEGORICAL_COLORS = ["var(--volt)", "var(--credit)", "var(--debit)", "#a855f7", "#ec4899", "#f97316", "#eab308"];
 const ANIM_DUR = 800;
@@ -15,11 +16,23 @@ const ANIM_EASE = "ease-out";
 
 export default function Dashboard() {
   const [data, setData] = useState<NASRecord[]>([]);
+  const [forecast, setForecast] = useState<ForecastData[]>([]);
+  const [status, setStatus] = useState<IngestionStatus | null>(null);
   const [baseYear, setBaseYear] = useState("2011-12");
   const [loading, setLoading] = useState(true);
+  const [showForecast, setShowForecast] = useState(true);
 
   useEffect(() => {
-    loadNASData().then(d => { setData(d); setLoading(false); });
+    Promise.all([
+      loadNASData(),
+      fetchForecast(12),
+      fetchIngestionStatus()
+    ]).then(([d, f, s]) => {
+      setData(d);
+      setForecast(f);
+      setStatus(s);
+      setLoading(false);
+    });
   }, []);
 
   const kpi = getKPISummary(data);
@@ -38,10 +51,38 @@ export default function Dashboard() {
   }
 
   const kpiCards = [
-    { label: "GDP (Current)", value: `₹${formatIndianNumber(kpi.gdpCurrent, 1)} L Cr`, icon: <IndianRupee className="h-5 w-5 text-ink" />, change: `+${formatIndianNumber(kpi.yoyGrowth, 1)}%`, outlook: 'growth' as const },
-    { label: "GDP (Constant)", value: `₹${formatIndianNumber(kpi.gdpConstant, 1)} L Cr`, icon: <BarChart3 className="h-5 w-5 text-ink" />, change: "Base 2011-12", outlook: 'neutral' as const },
-    { label: "Growth Rate", value: `${formatIndianNumber(kpi.growthRate, 1)}%`, icon: <TrendingUp className="h-5 w-5 text-ink" />, change: "GDP YoY", outlook: Number(kpi.growthRate) >= 0 ? 'growth' as const : 'decline' as const },
-    { label: "Data Points", value: formatIndianNumber(kpi.dataPoints, 0), icon: <Activity className="h-5 w-5 text-ink" />, change: kpi.yearsSpan, outlook: 'neutral' as const },
+    { 
+      label: "GDP (Current)", 
+      value: `₹${formatIndianNumber(kpi.gdpCurrent, 1)} L Cr`, 
+      icon: <IndianRupee className="h-5 w-5 text-ink" />, 
+      change: `+${formatIndianNumber(kpi.yoyGrowth, 1)}%`, 
+      outlook: 'growth' as const,
+      provenance: status ? { ingestion_timestamp: status.timestamp, source_file_hash: status.source_file_hash, is_anomaly: false } : undefined
+    },
+    { 
+      label: "GDP (Constant)", 
+      value: `₹${formatIndianNumber(kpi.gdpConstant, 1)} L Cr`, 
+      icon: <BarChart3 className="h-5 w-5 text-ink" />, 
+      change: "Base 2011-12", 
+      outlook: 'neutral' as const,
+      provenance: status ? { ingestion_timestamp: status.timestamp, source_file_hash: status.source_file_hash, is_anomaly: false } : undefined 
+    },
+    { 
+      label: "Growth Rate", 
+      value: `${formatIndianNumber(kpi.growthRate, 1)}%`, 
+      icon: <TrendingUp className="h-5 w-5 text-ink" />, 
+      change: "GDP YoY", 
+      outlook: Number(kpi.growthRate) >= 0 ? 'growth' as const : 'decline' as const,
+      provenance: status ? { ingestion_timestamp: status.timestamp, source_file_hash: status.source_file_hash, is_anomaly: false } : undefined 
+    },
+    { 
+      label: "Data Points", 
+      value: formatIndianNumber(kpi.dataPoints, 0), 
+      icon: <Activity className="h-5 w-5 text-ink" />, 
+      change: kpi.yearsSpan, 
+      outlook: 'neutral' as const,
+      provenance: status ? { ingestion_timestamp: status.timestamp, source_file_hash: status.source_file_hash, is_anomaly: false } : undefined 
+    },
   ];
 
   const tooltipStyle = {
@@ -60,14 +101,72 @@ export default function Dashboard() {
   const creditColor = 'var(--credit)';
   const debitColor = 'var(--debit)';
 
+  // Merge forecast data with GDP trend
+  type CombinedGdpDataItem = {
+    year: string;
+    year_int: number;
+    current: number;
+    constant: number;
+    yhat_lower?: number;
+    yhat_upper?: number;
+    isForecast?: boolean;
+    is_anomaly?: boolean;
+  };
+  
+  const combinedGdpData: CombinedGdpDataItem[] = [...gdpTrend];
+  if (showForecast && forecast.length > 0) {
+    const lastHist = gdpTrend[gdpTrend.length - 1];
+    forecast.forEach(f => {
+      const year = new Date(f.ds).getFullYear();
+      if (year > lastHist.year_int) {
+        combinedGdpData.push({
+          year: year.toString(),
+          year_int: year,
+          current: 0,
+          constant: f.yhat / 1e5,
+          yhat_lower: f.yhat_lower / 1e5,
+          yhat_upper: f.yhat_upper / 1e5,
+          isForecast: true,
+          is_anomaly: false
+        });
+      }
+    });
+  }
+
+  const todayYearInt = gdpTrend.length > 0 ? gdpTrend[gdpTrend.length - 1].year_int : new Date().getFullYear();
+
+  const renderCustomDot = (props: any) => {
+    const { cx, cy, payload } = props;
+    if (payload.is_anomaly) {
+      return (
+        <svg x={cx - 12} y={cy - 12} width={24} height={24} fill="var(--debit)" viewBox="0 0 24 24">
+           <path d="M12 2L1 21h22M12 8v5M12 16h.01" stroke="var(--paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      );
+    }
+    return <circle cx={cx} cy={cy} r={4} fill={paperColor} stroke={inkColor} strokeWidth={2} />;
+  };
+
   return (
     <div className="w-full px-[6vw] py-12 bg-transparent text-ink pb-32 relative z-10">
-      <div className="mb-12 pt-8">
-        <div className="eyebrow mb-6">MACRO INDICATORS</div>
-        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Dashboard</h1>
-        <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
-          India National Accounts Statistics — Interactive Analysis
-        </p>
+      <div className="mb-12 pt-8 flex justify-between items-end">
+        <div>
+          <div className="eyebrow mb-6">MACRO INDICATORS</div>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Dashboard</h1>
+          <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80 mb-2">
+            India National Accounts Statistics — Interactive Analysis
+          </p>
+          {status && (
+            <div className="flex items-center gap-2 text-xs font-mono font-bold opacity-70 bg-ink/10 w-fit px-3 py-1 border-2 border-ink">
+              <Clock className="w-3 h-3" />
+              LAST INGESTED: {new Date(status.timestamp).toLocaleString()}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-3 bg-paper border-4 border-ink p-4 shadow-[4px_4px_0_var(--ink)]">
+          <div className="text-sm font-bold font-heading uppercase">Show Model Accuracy</div>
+          <Switch checked={showForecast} onCheckedChange={setShowForecast} />
+        </div>
       </div>
 
       <div className="flex gap-4 mb-16">
@@ -86,15 +185,39 @@ export default function Dashboard() {
           <h3 className="font-heading font-bold text-xl mb-2 uppercase">GDP Annual Trend</h3>
           <p className="opacity-75 mb-6 text-sm">Visualizes the absolute size of the Indian economy over time. Current prices reflect nominal growth including inflation, while Constant prices show real economic expansion adjusted to the base year.</p>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={gdpTrend}>
+            <ComposedChart data={combinedGdpData}>
               <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
               <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
               <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${formatIndianNumber(v, 0)}`} fontFamily='"IBM Plex Mono", monospace' />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Cr`, '']} />
               <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: paperColor, stroke: inkColor }} activeDot={{ r: 6 }} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="constant" name="Constant Price" stroke={inkColor} strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4, fill: paperColor, stroke: inkColor }} />
-            </LineChart>
+              {showForecast && (
+                <Area 
+                  type="monotone" 
+                  dataKey="yhat_upper" 
+                  fill={voltColor} 
+                  stroke="none" 
+                  fillOpacity={0.15} 
+                  name="Confidence Interval" 
+                  animationDuration={ANIM_DUR} 
+                />
+              )}
+              {showForecast && (
+                <Area 
+                  type="monotone" 
+                  dataKey="yhat_lower" 
+                  fill={paperColor} 
+                  stroke="none" 
+                  fillOpacity={1} 
+                  name="Confidence Interval Lower" 
+                  legendType="none"
+                  animationDuration={ANIM_DUR} 
+                />
+              )}
+              <ReferenceLine x={todayYearInt} stroke={inkColor} strokeDasharray="3 3" label={{ position: 'top', value: 'TODAY', fill: inkColor, fontSize: 10, fontFamily: 'IBM Plex Mono' }} />
+              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={4} dot={renderCustomDot} activeDot={{ r: 6 }} />
+              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="constant" name="Constant Price (Actual/Forecast)" stroke={inkColor} strokeWidth={3} strokeDasharray="5 5" dot={renderCustomDot} />
+            </ComposedChart>
           </ResponsiveContainer>
         </BrutalistCard>
 
