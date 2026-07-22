@@ -32,7 +32,7 @@ export function InteractiveNarrative() {
   }
 
   // Filter out the last chapter (which was just a scroll transition marker)
-  const displayChapters = chapters.filter(c => c.id < 6);
+  const displayChapters = chapters.filter(c => c.id < 5);
 
   return (
     <div className="w-full flex flex-col h-[calc(100vh-3.5rem)] pt-6">
