@@ -35,8 +35,16 @@ export interface ForecastData {
 }
 
 export interface BacktestData {
-  actuals: { ds: string; y: number }[];
-  forecasts: { ds: string; yhat: number; yhat_lower: number; yhat_upper: number }[];
+  metrics: {
+    mae: number;
+    rmse: number;
+  };
+  details: {
+    date: string;
+    actual: number;
+    predicted: number;
+    error: number;
+  }[];
 }
 
 let cachedData: NASRecord[] | null = null;

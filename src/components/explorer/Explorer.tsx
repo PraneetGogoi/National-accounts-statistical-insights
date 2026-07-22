@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadNASData, fetchForecast, fetchIngestionStatus, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, NASRecord, ForecastData, IngestionStatus, formatIndianNumber } from "@/lib/data-utils";
+import { loadNASData, fetchForecast, fetchIngestionStatus, fetchBacktest, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, NASRecord, ForecastData, IngestionStatus, BacktestData, formatIndianNumber } from "@/lib/data-utils";
 import { IndianRupee, TrendingUp, BarChart3, Activity, Clock } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [data, setData] = useState<NASRecord[]>([]);
   const [forecast, setForecast] = useState<ForecastData[]>([]);
   const [status, setStatus] = useState<IngestionStatus | null>(null);
+  const [backtest, setBacktest] = useState<BacktestData | null>(null);
   const [baseYear, setBaseYear] = useState("2011-12");
   const [loading, setLoading] = useState(true);
   const [showForecast, setShowForecast] = useState(true);
@@ -26,11 +27,13 @@ export default function Dashboard() {
     Promise.all([
       loadNASData(),
       fetchForecast(12),
-      fetchIngestionStatus()
-    ]).then(([d, f, s]) => {
+      fetchIngestionStatus(),
+      fetchBacktest()
+    ]).then(([d, f, s, b]) => {
       setData(d);
       setForecast(f);
       setStatus(s);
+      setBacktest(b);
       setLoading(false);
     });
   }, []);
@@ -182,7 +185,16 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
         <BrutalistCard delay={0.1}>
-          <h3 className="font-heading font-bold text-xl mb-2 uppercase">GDP Annual Trend</h3>
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="font-heading font-bold text-xl uppercase">GDP Annual Trend</h3>
+            {showForecast && backtest && (
+              <div className="text-right text-xs font-mono bg-ink/10 px-3 py-1.5 border-2 border-ink">
+                <div className="font-bold border-b border-ink/20 pb-1 mb-1">PROPHET MODEL ACCURACY</div>
+                <div className="flex justify-between gap-4"><span>MAE:</span> <span>₹{formatIndianNumber(backtest.metrics.mae / 1e5, 1)} L Cr</span></div>
+                <div className="flex justify-between gap-4"><span>RMSE:</span> <span>₹{formatIndianNumber(backtest.metrics.rmse / 1e5, 1)} L Cr</span></div>
+              </div>
+            )}
+          </div>
           <p className="opacity-75 mb-6 text-sm">Visualizes the absolute size of the Indian economy over time. Current prices reflect nominal growth including inflation, while Constant prices show real economic expansion adjusted to the base year.</p>
           <ResponsiveContainer width="100%" height={350}>
             <ComposedChart data={combinedGdpData}>
