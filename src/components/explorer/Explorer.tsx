@@ -388,9 +388,9 @@ export default function Dashboard() {
           <h3 className="font-heading font-bold text-xl mb-2 uppercase">Model Backtesting Overlay</h3>
           <p className="opacity-75 mb-6 text-sm">Visualizes how accurately the Prophet ML model predicted historical data over a past validation window.</p>
           <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={backtest ? backtest.data : []}>
+            <LineChart data={backtest ? backtest.details : []}>
               <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-              <XAxis dataKey="ds" stroke={inkColor} fontSize={11} tickFormatter={v => new Date(v).getFullYear().toString()} fontFamily='"IBM Plex Mono", monospace' />
+              <XAxis dataKey="date" stroke={inkColor} fontSize={11} tickFormatter={v => new Date(v).getFullYear().toString()} fontFamily='"IBM Plex Mono", monospace' />
               <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${formatIndianNumber(v / 1e5, 0)}`} fontFamily='"IBM Plex Mono", monospace' />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v / 1e5, 1)} K Cr`, '']} labelFormatter={l => new Date(l).getFullYear().toString()} />
               <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
