@@ -53,6 +53,18 @@ export default function Dashboard() {
     );
   }
 
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-paper text-ink p-8 text-center">
+        <div className="w-16 h-16 mb-6 text-debit border-4 border-debit flex items-center justify-center font-bold text-2xl rounded-full">!</div>
+        <h2 className="text-2xl font-bold font-heading uppercase mb-2">API Connection Failed</h2>
+        <p className="opacity-80 max-w-md font-mono text-sm">
+          Could not load data from the backend. If you are viewing this on Vercel, make sure your Python API is deployed and the VITE_API_URL environment variable is set.
+        </p>
+      </div>
+    );
+  }
+
   const kpiCards = [
     { 
       label: "GDP (Current)", 
