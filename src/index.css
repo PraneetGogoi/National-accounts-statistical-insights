@@ -176,6 +176,7 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 2.5px solid var(--ink);
+    border-radius: 9999px;
     padding: 0.5rem 0.9rem;
     background: var(--paper);
     cursor: pointer;
