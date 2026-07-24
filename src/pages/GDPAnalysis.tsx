@@ -1,83 +1,16 @@
-import { useEffect, useState, useMemo } from "react";
-import { loadNASData, getGDPTrend, getGrowthRates, NASRecord } from "@/lib/data-utils";
+import { useEffect, useState } from "react";
+import { loadNASData, getQuarterlySeasonality, NASRecord, formatIndianNumber } from "@/lib/data-utils";
 import {
-  LineChart, Line, ComposedChart, Bar, AreaChart, Area, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  ReferenceLine, ReferenceArea
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 import { BrutalistCard } from "@/components/ui/brutal/BrutalistCard";
 import { BrutalistPill } from "@/components/ui/brutal/BrutalistPill";
 
-function polyFit(xVals: number[], yVals: number[], degree = 2) {
-  const n = xVals.length;
-  const size = degree + 1;
-
-  const X: number[][] = xVals.map(x => {
-    const row: number[] = [];
-    for (let d = 0; d <= degree; d++) row.push(Math.pow(x, d));
-    return row;
-  });
-
-  const XtX: number[][] = Array.from({ length: size }, (_, i) =>
-    Array.from({ length: size }, (_, j) =>
-      X.reduce((sum, row) => sum + row[i] * row[j], 0)
-    )
-  );
-
-  const Xty: number[] = Array.from({ length: size }, (_, i) =>
-    X.reduce((sum, row, k) => sum + row[i] * yVals[k], 0)
-  );
-
-  const augmented = XtX.map((row, i) => [...row, Xty[i]]);
-  for (let col = 0; col < size; col++) {
-    let maxRow = col;
-    for (let row = col + 1; row < size; row++) {
-      if (Math.abs(augmented[row][col]) > Math.abs(augmented[maxRow][col])) maxRow = row;
-    }
-    [augmented[col], augmented[maxRow]] = [augmented[maxRow], augmented[col]];
-    const pivot = augmented[col][col];
-    if (Math.abs(pivot) < 1e-12) continue;
-    for (let j = col; j <= size; j++) augmented[col][j] /= pivot;
-    for (let row = 0; row < size; row++) {
-      if (row === col) continue;
-      const factor = augmented[row][col];
-      for (let j = col; j <= size; j++) augmented[row][j] -= factor * augmented[col][j];
-    }
-  }
-
-  const coeffs = augmented.map(row => row[size]);
-  const predict = (x: number) => coeffs.reduce((sum, c, i) => sum + c * Math.pow(x, i), 0);
-
-  const yMean = yVals.reduce((s, v) => s + v, 0) / n;
-  const ssRes = yVals.reduce((s, y, i) => s + Math.pow(y - predict(xVals[i]), 2), 0);
-  const ssTot = yVals.reduce((s, y) => s + Math.pow(y - yMean, 2), 0);
-  const r2 = 1 - ssRes / ssTot;
-
-  return { predict, coeffs, r2 };
-}
-
-function cagrForecast(gdpData: { year_int: number; current: number }[], yearsAhead: number) {
-  if (gdpData.length < 2) return [];
-  const recent = gdpData.slice(-5);
-  const first = recent[0];
-  const last = recent[recent.length - 1];
-  const years = last.year_int - first.year_int;
-  const cagr = years > 0 ? Math.pow(last.current / first.current, 1 / years) - 1 : 0;
-
-  const forecasts = [];
-  for (let i = 1; i <= yearsAhead; i++) {
-    forecasts.push({
-      year_int: last.year_int + i,
-      forecast: last.current * Math.pow(1 + cagr, i),
-    });
-  }
-  return { forecasts, cagr };
-}
-
 const ANIM_DUR = 800;
 const ANIM_EASE = "ease-out";
+const CATEGORICAL_COLORS = ["var(--volt)", "var(--credit)", "var(--debit)", "#a855f7", "#ec4899", "#f97316"];
 
-export default function GDPAnalysis() {
+export default function SeasonalityAnalysis() {
   const [data, setData] = useState<NASRecord[]>([]);
   const [baseYear, setBaseYear] = useState("2011-12");
   const [loading, setLoading] = useState(true);
@@ -85,102 +18,6 @@ export default function GDPAnalysis() {
   useEffect(() => {
     loadNASData().then(d => { setData(d); setLoading(false); });
   }, []);
-
-  const gdpTrend = useMemo(() => getGDPTrend(data, baseYear), [data, baseYear]);
-  const growthRates = useMemo(() => getGrowthRates(data, baseYear), [data, baseYear]);
-
-  const forecast = useMemo(() => {
-    if (gdpTrend.length < 3) return null;
-
-    const xVals = gdpTrend.map(d => d.year_int);
-    const yVals = gdpTrend.map(d => d.current);
-    const xMin = Math.min(...xVals);
-    const xNorm = xVals.map(x => x - xMin);
-
-    const model = polyFit(xNorm, yVals, 2);
-    const cagrResult = cagrForecast(gdpTrend, 5);
-    if (!cagrResult || !('cagr' in cagrResult)) return null;
-
-    const lastYear = Math.max(...xVals);
-    const lastGDP = gdpTrend[gdpTrend.length - 1].current;
-
-    const chartData = gdpTrend.map(d => ({
-      year_int: d.year_int,
-      actual: d.current,
-      polyForecast: null as number | null,
-      cagrForecast: null as number | null,
-      type: 'historical' as string,
-    }));
-
-    const forecastYears = [];
-    let prevPoly = lastGDP;
-    let prevCagr = lastGDP;
-
-    for (let i = 1; i <= 5; i++) {
-      const fy = lastYear + i;
-      const polyVal = Math.max(0, model.predict(fy - xMin));
-      const cagrVal = cagrResult.forecasts[i - 1]?.forecast || 0;
-      const avgVal = (polyVal + cagrVal) / 2;
-
-      const polyGrowthPct = ((polyVal - prevPoly) / prevPoly * 100);
-      const cagrGrowthPct = ((cagrVal - prevCagr) / prevCagr * 100);
-
-      forecastYears.push({
-        year_int: fy,
-        polyGDP: polyVal,
-        cagrGDP: cagrVal,
-        polyGrowth: polyGrowthPct.toFixed(1),
-        cagrGrowth: cagrGrowthPct.toFixed(1),
-        avgGDP: avgVal,
-        outlook: avgVal > prevPoly ? 'growth' : 'loss',
-      });
-
-      chartData.push({
-        year_int: fy,
-        actual: null as number | null,
-        polyForecast: polyVal,
-        cagrForecast: cagrVal,
-        type: 'forecast' as string,
-      });
-
-      prevPoly = polyVal;
-      prevCagr = cagrVal;
-    }
-
-    const lastHistIdx = gdpTrend.length - 1;
-    chartData[lastHistIdx] = {
-      ...chartData[lastHistIdx],
-      polyForecast: chartData[lastHistIdx].actual,
-      cagrForecast: chartData[lastHistIdx].actual,
-    };
-
-    return {
-      chartData,
-      forecastYears,
-      r2: model.r2,
-      cagr: cagrResult.cagr,
-      lastYear,
-      lastGDP,
-    };
-  }, [gdpTrend]);
-
-  const waterfallData = useMemo(() => {
-    if(!gdpTrend || gdpTrend.length === 0) return [];
-    return gdpTrend.slice(1).map((d, i) => ({
-      year: d.year_int,
-      change: d.current - gdpTrend[i].current,
-      positive: d.current >= gdpTrend[i].current,
-    }));
-  }, [gdpTrend]);
-
-  const deflatorData = useMemo(() => {
-    if(!gdpTrend) return [];
-    return gdpTrend.map(d => ({
-      year: d.year_int,
-      deflator: d.constant > 0 ? (d.current / d.constant * 100) : 100,
-      current: d.current,
-    }));
-  }, [gdpTrend]);
 
   if (loading) {
     return (
@@ -195,12 +32,50 @@ export default function GDPAnalysis() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] bg-paper text-ink p-8 text-center">
         <div className="w-16 h-16 mb-6 text-debit border-4 border-debit flex items-center justify-center font-bold text-2xl rounded-full">!</div>
         <h2 className="text-2xl font-bold font-heading uppercase mb-2">API Connection Failed</h2>
-        <p className="opacity-80 max-w-md font-mono text-sm">
-          Could not load data from the backend. If you are viewing this on Vercel, make sure your Python API is deployed and the VITE_API_URL environment variable is set.
-        </p>
       </div>
     );
   }
+
+  const quarterlyData = getQuarterlySeasonality(data, baseYear);
+  
+  const recentYears = quarterlyData.slice(-5);
+  const radarData: any[] = [
+    { quarter: 'Q1 (Apr-Jun)' },
+    { quarter: 'Q2 (Jul-Sep)' },
+    { quarter: 'Q3 (Oct-Dec)' },
+    { quarter: 'Q4 (Jan-Mar)' }
+  ];
+  
+  recentYears.forEach(yData => {
+    radarData[0][`FY${yData.year_int}`] = yData.Q1 || 0;
+    radarData[1][`FY${yData.year_int}`] = yData.Q2 || 0;
+    radarData[2][`FY${yData.year_int}`] = yData.Q3 || 0;
+    radarData[3][`FY${yData.year_int}`] = yData.Q4 || 0;
+  });
+
+  const heatmapData = quarterlyData.map((curr, idx) => {
+    const prev = idx > 0 ? quarterlyData[idx - 1] : null;
+    return {
+      year: curr.year,
+      Q1: curr.Q1,
+      Q2: curr.Q2,
+      Q3: curr.Q3,
+      Q4: curr.Q4,
+      Q1_growth: prev && prev.Q1 && curr.Q1 ? ((curr.Q1 - prev.Q1) / prev.Q1) * 100 : null,
+      Q2_growth: prev && prev.Q2 && curr.Q2 ? ((curr.Q2 - prev.Q2) / prev.Q2) * 100 : null,
+      Q3_growth: prev && prev.Q3 && curr.Q3 ? ((curr.Q3 - prev.Q3) / prev.Q3) * 100 : null,
+      Q4_growth: prev && prev.Q4 && curr.Q4 ? ((curr.Q4 - prev.Q4) / prev.Q4) * 100 : null,
+    };
+  }).reverse();
+
+  const getHeatmapColor = (growth: number | null) => {
+    if (growth === null) return 'bg-ink/5';
+    if (growth > 8) return 'bg-[#14b8a6] text-paper';
+    if (growth > 4) return 'bg-[#2dd4bf] text-ink';
+    if (growth > 0) return 'bg-[#99f6e4] text-ink';
+    if (growth > -4) return 'bg-[#fecdd3] text-ink';
+    return 'bg-[#e11d48] text-paper';
+  };
 
   const tooltipStyle = {
     backgroundColor: 'var(--paper)',
@@ -211,185 +86,102 @@ export default function GDPAnalysis() {
     boxShadow: '4px 4px 0 var(--ink)',
     fontWeight: '600'
   };
-
   const inkColor = 'var(--ink)';
-  const paperColor = 'var(--paper)';
-  const voltColor = 'var(--volt)';
-  const creditColor = 'var(--credit)';
-  const debitColor = 'var(--debit)';
 
   return (
     <div className="w-full px-[6vw] py-12 bg-transparent text-ink pb-32 relative z-10">
       <div className="mb-12 pt-8">
-        <div className="eyebrow mb-6">RAW LEDGER ANALYSIS</div>
-        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">GDP Deep Dive</h1>
+        <div className="eyebrow mb-6">TIME-SERIES PATTERNS</div>
+        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Seasonality Analysis</h1>
         <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
-          Analyzing India's Gross Domestic Product trends, patterns & 5-year forecast.
+          Discover repeating cyclical trends and quarterly growth dynamics.
         </p>
       </div>
 
-      <div className="flex gap-4 mb-16">
+      <div className="flex gap-4 mb-12">
         <BrutalistPill active={baseYear === "2011-12"} onClick={() => setBaseYear("2011-12")}>BASE 2011-12</BrutalistPill>
         <BrutalistPill active={baseYear === "2022-23"} onClick={() => setBaseYear("2022-23")}>BASE 2022-23</BrutalistPill>
       </div>
 
-      {forecast && (
-        <div className="space-y-12">
-          <div className="flex flex-wrap items-center gap-4">
-            <h2 className="text-2xl md:text-3xl font-heading font-bold uppercase">🔮 GDP 5-Year Forecast</h2>
-            <span className="font-numbers text-xs font-bold border-[3px] border-ink px-3 py-1 shadow-[3px_3px_0_var(--ink)] bg-volt text-white">
-              R² = {forecast.r2.toFixed(3)} | CAGR = {(forecast.cagr * 100).toFixed(1)}%
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {forecast.forecastYears.map((fy, i) => (
-              <BrutalistCard key={fy.year_int} delay={i * 0.1}>
-                <span className={`absolute -top-0.5 -right-0.5 font-numbers font-bold text-xs tracking-wider px-3 py-2 border-l-[3px] border-b-[3px] border-ink ${fy.outlook === 'growth' ? 'bg-credit text-ink' : 'bg-debit text-paper'}`}>
-                  {fy.outlook === 'growth' ? 'TREND UP' : 'TREND DN'}
-                </span>
-                <div className="text-sm font-numbers font-semibold opacity-70 mb-2">FY {fy.year_int}</div>
-                <div className="font-heading font-bold text-2xl mb-1">₹{fy.avgGDP.toFixed(0)}</div>
-                <div className="font-numbers text-sm">
-                  {fy.outlook === 'growth' ? '+' : ''}{((fy.avgGDP - (forecast.forecastYears[forecast.forecastYears.indexOf(fy) - 1]?.avgGDP || forecast.lastGDP)) / (forecast.forecastYears[forecast.forecastYears.indexOf(fy) - 1]?.avgGDP || forecast.lastGDP) * 100).toFixed(1)}% avg
+      <div className="grid lg:grid-cols-2 gap-8">
+        
+        <BrutalistCard delay={0.1} className="lg:col-span-2">
+          <h3 className="font-heading font-bold text-xl mb-2 uppercase">Quarterly Seasonality Heatmap (YoY Growth)</h3>
+          <p className="opacity-75 mb-6 text-sm">Visualizes the year-over-year growth rate for each specific quarter. Dark green indicates strong expansion compared to the same quarter last year.</p>
+          
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[600px] border-[3px] border-ink bg-paper shadow-[4px_4px_0_var(--ink)]">
+              <div className="grid grid-cols-5 border-b-[3px] border-ink bg-ink text-paper font-bold font-heading text-sm uppercase">
+                <div className="p-3 border-r-[3px] border-ink text-center">Financial Year</div>
+                <div className="p-3 border-r-[3px] border-ink text-center">Q1 (Apr-Jun)</div>
+                <div className="p-3 border-r-[3px] border-ink text-center">Q2 (Jul-Sep)</div>
+                <div className="p-3 border-r-[3px] border-ink text-center">Q3 (Oct-Dec)</div>
+                <div className="p-3 text-center">Q4 (Jan-Mar)</div>
+              </div>
+              
+              {heatmapData.map((row, i) => (
+                <div key={row.year} className={`grid grid-cols-5 font-mono text-sm ${i !== heatmapData.length - 1 ? 'border-b-[3px] border-ink' : ''}`}>
+                  <div className="p-3 border-r-[3px] border-ink font-bold flex items-center justify-center bg-ink/5">
+                    FY {row.year}
+                  </div>
+                  {[1, 2, 3, 4].map(q => {
+                    const growth = row[`Q${q}_growth` as keyof typeof row] as number | null;
+                    const val = row[`Q${q}` as keyof typeof row] as number | null;
+                    return (
+                      <div key={q} className={`p-3 border-r-[3px] border-ink last:border-r-0 flex flex-col items-center justify-center ${getHeatmapColor(growth)} transition-colors hover:brightness-110`}>
+                        {growth !== null ? (
+                          <>
+                            <span className="font-bold text-base">{growth > 0 ? '+' : ''}{growth.toFixed(1)}%</span>
+                            <span className="text-[10px] opacity-70 mt-1">₹{formatIndianNumber(val || 0, 0)}</span>
+                          </>
+                        ) : (
+                          <span className="opacity-50">-</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              </BrutalistCard>
-            ))}
+              ))}
+            </div>
           </div>
+          
+          <div className="flex items-center justify-center gap-4 mt-6 text-xs font-mono font-bold">
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#e11d48] border border-ink"></div> &lt; -4%</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#fecdd3] border border-ink"></div> -4% to 0%</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#99f6e4] border border-ink"></div> 0% to 4%</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#2dd4bf] border border-ink"></div> 4% to 8%</div>
+            <div className="flex items-center gap-2"><div className="w-4 h-4 bg-[#14b8a6] border border-ink"></div> &gt; 8%</div>
+          </div>
+        </BrutalistCard>
 
-          <BrutalistCard delay={0.2}>
-            <h3 className="font-heading font-bold text-xl mb-2 uppercase">📈 GDP Forecast — Poly vs CAGR</h3>
-            <p className="opacity-75 mb-6 text-sm">Two models compared: Quadratic polynomial regression (curve) and Compound Annual Growth Rate projection (linear).</p>
-            <ResponsiveContainer width="100%" height={450}>
-              <LineChart data={forecast.chartData} margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-                <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-                <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${v.toFixed(0)}`} fontFamily='"IBM Plex Mono", monospace' />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number | null) => v !== null ? [`₹${v.toFixed(1)} K Cr`, ''] : ['-', '']} />
-                <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px', marginTop: '10px' }} />
-                <ReferenceArea
-                  x1={forecast.lastYear}
-                  x2={forecast.lastYear + 5}
-                  fill={voltColor}
-                  fillOpacity={0.08}
+        <BrutalistCard delay={0.2} className="lg:col-span-2">
+          <h3 className="font-heading font-bold text-xl mb-2 uppercase">Radial Seasonal Cycle (Recent 5 Years)</h3>
+          <p className="opacity-75 mb-6 text-sm">A polar view of the repeating annual pattern. The shape of the polygon reveals whether the economy peaks in Q3/Q4 consistently every year.</p>
+          <ResponsiveContainer width="100%" height={500}>
+            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+              <PolarGrid stroke={inkColor} opacity={0.2} />
+              <PolarAngleAxis dataKey="quarter" tick={{ fill: inkColor, fontSize: 12, fontWeight: 'bold', fontFamily: '"IBM Plex Mono", monospace' }} />
+              <PolarRadiusAxis tick={{ fill: inkColor, fontSize: 10, fontFamily: '"IBM Plex Mono", monospace' }} angle={90} tickFormatter={(v) => `₹${formatIndianNumber(v, 0)}`} />
+              
+              {recentYears.map((y, i) => (
+                <Radar 
+                  key={y.year} 
+                  name={`FY ${y.year}`} 
+                  dataKey={`FY${y.year_int}`} 
+                  stroke={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} 
+                  strokeWidth={3} 
+                  fill={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} 
+                  fillOpacity={0.1}
+                  animationDuration={ANIM_DUR}
+                  animationEasing={ANIM_EASE}
                 />
-                <ReferenceLine x={forecast.lastYear} stroke={inkColor} strokeWidth={2} strokeDasharray="6 6" />
-                <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="actual" name="Historical GDP" stroke={inkColor} strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: paperColor, stroke: inkColor }} connectNulls={false} />
-                <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="polyForecast" name="Poly Forecast" stroke={creditColor} strokeWidth={3} strokeDasharray="8 4" dot={{ r: 4, fill: creditColor, stroke: inkColor, strokeWidth: 2 }} connectNulls={false} />
-                <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="cagrForecast" name="CAGR Forecast" stroke={voltColor} strokeWidth={3} strokeDasharray="4 4" dot={{ r: 4, fill: voltColor, stroke: inkColor, strokeWidth: 2 }} connectNulls={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </BrutalistCard>
-
-          <BrutalistCard className="overflow-hidden !p-0" delay={0.3}>
-            <div className="p-6">
-              <h3 className="font-heading font-bold text-xl mb-2 uppercase">📋 Forecast Details Table</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-y-[3px] border-ink bg-ink/5">
-                    <th className="p-4 font-numbers uppercase text-sm">Fiscal Year</th>
-                    <th className="p-4 font-numbers uppercase text-sm text-right">Poly GDP</th>
-                    <th className="p-4 font-numbers uppercase text-sm text-right">Poly Growth</th>
-                    <th className="p-4 font-numbers uppercase text-sm text-right">CAGR GDP</th>
-                    <th className="p-4 font-numbers uppercase text-sm text-right">CAGR Growth</th>
-                    <th className="p-4 font-numbers uppercase text-sm text-center">Outlook</th>
-                  </tr>
-                </thead>
-                <tbody className="font-numbers text-sm">
-                  <tr className="border-b-[3px] border-ink/20">
-                    <td className="p-4 font-bold">FY {forecast.lastYear} (Actual)</td>
-                    <td className="p-4 text-right">₹{forecast.lastGDP.toFixed(0)}</td>
-                    <td className="p-4 text-right">—</td>
-                    <td className="p-4 text-right">₹{forecast.lastGDP.toFixed(0)}</td>
-                    <td className="p-4 text-right">—</td>
-                    <td className="p-4 text-center">—</td>
-                  </tr>
-                  {forecast.forecastYears.map((fy) => (
-                    <tr key={fy.year_int} className="border-b-[3px] border-ink/20 hover:bg-ink/5 transition-colors">
-                      <td className="p-4 font-bold">FY {fy.year_int}</td>
-                      <td className="p-4 text-right">₹{fy.polyGDP.toFixed(0)}</td>
-                      <td className={`p-4 text-right font-bold ${parseFloat(fy.polyGrowth) >= 0 ? 'text-credit' : 'text-debit'}`}>
-                        {parseFloat(fy.polyGrowth) >= 0 ? '+' : ''}{fy.polyGrowth}%
-                      </td>
-                      <td className="p-4 text-right">₹{fy.cagrGDP.toFixed(0)}</td>
-                      <td className={`p-4 text-right font-bold ${parseFloat(fy.cagrGrowth) >= 0 ? 'text-credit' : 'text-debit'}`}>
-                        {parseFloat(fy.cagrGrowth) >= 0 ? '+' : ''}{fy.cagrGrowth}%
-                      </td>
-                      <td className="p-4 text-center">
-                        <span className={`inline-block px-3 py-1 border-[3px] border-ink font-bold text-xs shadow-[2px_2px_0_var(--ink)] ${fy.outlook === 'growth' ? 'bg-credit text-ink' : 'bg-debit text-paper'}`}>
-                          {fy.outlook === 'growth' ? 'GROWTH' : 'DECLINE'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </BrutalistCard>
-        </div>
-      )}
-
-      <div className="grid lg:grid-cols-2 gap-8 mt-12">
-        <BrutalistCard delay={0.1}>
-          <h3 className="font-heading font-bold text-xl mb-6 uppercase">GDP Trend — Current vs Constant</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <AreaChart data={gdpTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-              <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-              <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${v.toFixed(0)}`} fontFamily='"IBM Plex Mono", monospace' />
-              <Tooltip contentStyle={tooltipStyle} />
+              ))}
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Cr`, '']} />
               <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
-              <Area animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="current" name="Current Price" fill={voltColor} stroke={inkColor} strokeWidth={3} fillOpacity={0.2} />
-              <Area animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="constant" name="Constant Price" fill={creditColor} stroke={inkColor} strokeWidth={3} fillOpacity={0.2} strokeDasharray="5 5" />
-            </AreaChart>
+            </RadarChart>
           </ResponsiveContainer>
         </BrutalistCard>
 
-        <BrutalistCard delay={0.2}>
-          <h3 className="font-heading font-bold text-xl mb-6 uppercase">GDP Growth Rate (%)</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={growthRates}>
-              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-              <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-              <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `${v}%`} fontFamily='"IBM Plex Mono", monospace' />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`]} />
-              <Bar animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} dataKey="growth" fill={voltColor} stroke={inkColor} strokeWidth={2} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="growth" stroke={inkColor} strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: paperColor, stroke: inkColor }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </BrutalistCard>
-
-        <BrutalistCard delay={0.3}>
-          <h3 className="font-heading font-bold text-xl mb-6 uppercase">📉 GDP YoY Change (Waterfall)</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <ComposedChart data={waterfallData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-              <XAxis dataKey="year" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-              <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${v.toFixed(0)}`} fontFamily='"IBM Plex Mono", monospace' />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${v.toFixed(1)} K Cr`]} />
-              <Bar animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} dataKey="change" stroke={inkColor} strokeWidth={2}>
-                {waterfallData.map((d, i) => (
-                  <Cell key={i} fill={d.positive ? creditColor : debitColor} />
-                ))}
-              </Bar>
-            </ComposedChart>
-          </ResponsiveContainer>
-        </BrutalistCard>
-
-        <BrutalistCard delay={0.4}>
-          <h3 className="font-heading font-bold text-xl mb-6 uppercase">GDP Deflator Index</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <LineChart data={deflatorData}>
-              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
-              <XAxis dataKey="year" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-              <YAxis stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v.toFixed(1), 'Deflator']} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="deflator" name="GDP Deflator" stroke={inkColor} strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: voltColor, stroke: inkColor }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </BrutalistCard>
       </div>
     </div>
   );

@@ -44,6 +44,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <NavLink to="/narrative" className="pill magnetic">001 / NARRATIVE</NavLink>
           <NavLink to="/dashboard" className="pill magnetic">002 / DASHBOARD</NavLink>
           <NavLink to="/sectors" className="pill magnetic">003 / SECTORAL</NavLink>
+          <NavLink to="/gdp" className="pill magnetic">004 / SEASONALITY</NavLink>
           <button onClick={toggleTheme} className="pill magnetic !px-3" aria-label="Toggle theme">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>

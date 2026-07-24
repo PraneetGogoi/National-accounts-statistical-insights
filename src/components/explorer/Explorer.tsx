@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { loadNASData, fetchForecast, fetchIngestionStatus, fetchBacktest, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, NASRecord, ForecastData, IngestionStatus, BacktestData, formatIndianNumber } from "@/lib/data-utils";
+import { loadNASData, fetchForecast, fetchIngestionStatus, fetchBacktest, getGDPTrend, getSectoralGVA, getExpenditureComponents, getGrowthRates, getQuarterlyGDP, getKPISummary, getTradeBalance, NASRecord, ForecastData, IngestionStatus, BacktestData, formatIndianNumber } from "@/lib/data-utils";
 import { IndianRupee, TrendingUp, BarChart3, Activity, Clock } from "lucide-react";
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -44,6 +44,7 @@ export default function Dashboard() {
   const expenditure = getExpenditureComponents(data, baseYear);
   const growthRates = getGrowthRates(data, baseYear);
   const quarterlyGDP = getQuarterlyGDP(data, baseYear);
+  const tradeBalance = getTradeBalance(data, baseYear);
 
   if (loading) {
     return (
@@ -120,25 +121,38 @@ export default function Dashboard() {
   type CombinedGdpDataItem = {
     year: string;
     year_int: number;
-    current: number;
-    constant: number;
+    current?: number;
+    actual_constant?: number;
+    forecast_constant?: number;
     yhat_lower?: number;
     yhat_upper?: number;
     isForecast?: boolean;
     is_anomaly?: boolean;
   };
   
-  const combinedGdpData: CombinedGdpDataItem[] = [...gdpTrend];
+  const combinedGdpData: CombinedGdpDataItem[] = gdpTrend.map(d => ({
+    year: d.year,
+    year_int: d.year_int,
+    current: d.current,
+    actual_constant: d.constant,
+    is_anomaly: d.is_anomaly
+  }));
+  
   if (showForecast && forecast.length > 0) {
     const lastHist = gdpTrend[gdpTrend.length - 1];
+    
+    if (lastHist) {
+       const lastPointIndex = combinedGdpData.length - 1;
+       combinedGdpData[lastPointIndex].forecast_constant = lastHist.constant;
+    }
+
     forecast.forEach(f => {
       const year = new Date(f.ds).getFullYear();
-      if (year > lastHist.year_int) {
+      if (!lastHist || year > lastHist.year_int) {
         combinedGdpData.push({
           year: year.toString(),
           year_int: year,
-          current: 0,
-          constant: f.yhat / 1e5,
+          forecast_constant: f.yhat / 1e5,
           yhat_lower: f.yhat_lower / 1e5,
           yhat_upper: f.yhat_upper / 1e5,
           isForecast: true,
@@ -152,11 +166,12 @@ export default function Dashboard() {
 
   const renderCustomDot = (props: any) => {
     const { cx, cy, payload } = props;
-    if (payload.is_anomaly) {
+    if (payload.is_anomaly && cx && cy) {
       return (
-        <svg x={cx - 12} y={cy - 12} width={24} height={24} fill="var(--debit)" viewBox="0 0 24 24">
-           <path d="M12 2L1 21h22M12 8v5M12 16h.01" stroke="var(--paper)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
+        <g>
+          <polygon points={`${cx},${cy-12} ${cx-10},${cy+6} ${cx+10},${cy+6}`} fill="var(--debit)" stroke="var(--ink)" strokeWidth="2" />
+          <text x={cx} y={cy+18} fontSize="9" fontFamily="IBM Plex Mono" textAnchor="middle" fill="var(--debit)" fontWeight="bold">ANOMALY</text>
+        </g>
       );
     }
     return <circle cx={cx} cy={cy} r={4} fill={paperColor} stroke={inkColor} strokeWidth={2} />;
@@ -239,8 +254,9 @@ export default function Dashboard() {
                 />
               )}
               <ReferenceLine x={todayYearInt} stroke={inkColor} strokeDasharray="3 3" label={{ position: 'top', value: 'TODAY', fill: inkColor, fontSize: 10, fontFamily: 'IBM Plex Mono' }} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={4} dot={renderCustomDot} activeDot={{ r: 6 }} />
-              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="constant" name="Constant Price (Actual/Forecast)" stroke={inkColor} strokeWidth={3} strokeDasharray="5 5" dot={renderCustomDot} />
+              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={4} dot={false} activeDot={{ r: 6 }} />
+              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="actual_constant" name="Constant Price (Actual)" stroke={inkColor} strokeWidth={3} dot={renderCustomDot} />
+              <Line animationDuration={ANIM_DUR} animationEasing={ANIM_EASE} type="monotone" dataKey="forecast_constant" name="Constant Price (Forecast)" stroke={inkColor} strokeWidth={3} strokeDasharray="5 5" dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </BrutalistCard>
@@ -348,6 +364,42 @@ export default function Dashboard() {
           </AreaChart>
         </ResponsiveContainer>
       </BrutalistCard>
+
+      <div className="grid lg:grid-cols-2 gap-8 mb-8">
+        <BrutalistCard delay={0.7}>
+          <h3 className="font-heading font-bold text-xl mb-2 uppercase">Trade Balance</h3>
+          <p className="opacity-75 mb-6 text-sm">Dual-axis view of Imports vs Exports over time. The solid line represents the net trade balance.</p>
+          <ResponsiveContainer width="100%" height={350}>
+            <ComposedChart data={tradeBalance} stackOffset="sign">
+              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} vertical={false} />
+              <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
+              <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${formatIndianNumber(Math.abs(v), 0)}`} fontFamily='"IBM Plex Mono", monospace' />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(Math.abs(v), 1)} K Cr`, '']} />
+              <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+              <ReferenceLine y={0} stroke={inkColor} />
+              <Bar animationDuration={ANIM_DUR} dataKey="exports" name="Exports" fill={voltColor} stroke={inkColor} strokeWidth={2} stackId="stack" />
+              <Bar animationDuration={ANIM_DUR} dataKey="imports" name="Imports" fill={debitColor} stroke={inkColor} strokeWidth={2} stackId="stack" />
+              <Line animationDuration={ANIM_DUR} type="monotone" dataKey="balance" name="Trade Balance" stroke={inkColor} strokeWidth={3} dot={{ fill: paperColor, stroke: inkColor, strokeWidth: 2, r: 4 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
+
+        <BrutalistCard delay={0.8}>
+          <h3 className="font-heading font-bold text-xl mb-2 uppercase">Model Backtesting Overlay</h3>
+          <p className="opacity-75 mb-6 text-sm">Visualizes how accurately the Prophet ML model predicted historical data over a past validation window.</p>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={backtest ? backtest.data : []}>
+              <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} />
+              <XAxis dataKey="ds" stroke={inkColor} fontSize={11} tickFormatter={v => new Date(v).getFullYear().toString()} fontFamily='"IBM Plex Mono", monospace' />
+              <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${formatIndianNumber(v / 1e5, 0)}`} fontFamily='"IBM Plex Mono", monospace' />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v / 1e5, 1)} K Cr`, '']} labelFormatter={l => new Date(l).getFullYear().toString()} />
+              <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+              <Line animationDuration={ANIM_DUR} type="monotone" dataKey="actual" name="Actual Data" stroke={inkColor} strokeWidth={3} dot={{ fill: paperColor, stroke: inkColor, strokeWidth: 2, r: 4 }} />
+              <Line animationDuration={ANIM_DUR} type="monotone" dataKey="predicted" name="Model Prediction" stroke={voltColor} strokeWidth={3} strokeDasharray="5 5" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </BrutalistCard>
+      </div>
     </div>
   );
 }

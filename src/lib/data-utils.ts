@@ -108,10 +108,10 @@ export function getGDPTrend(data: NASRecord[], baseYear = '2011-12') {
     .sort((a, b) => a.year_int - b.year_int)
     .reduce((acc, r) => {
       if (!acc.find(x => x.year_int === r.year_int)) {
-        acc.push({ year: r.year, year_int: r.year_int, current: r.current_price / 1e5, constant: r.constant_price / 1e5 });
+        acc.push({ year: r.year, year_int: r.year_int, current: r.current_price / 1e5, constant: r.constant_price / 1e5, is_anomaly: r.is_anomaly });
       }
       return acc;
-    }, [] as { year: string; year_int: number; current: number; constant: number }[]);
+    }, [] as { year: string; year_int: number; current: number; constant: number, is_anomaly: boolean }[]);
 }
 
 export function getSectoralGVA(data: NASRecord[], baseYear = '2011-12', yearInt?: number) {
@@ -220,4 +220,105 @@ export function formatIndianNumber(num: number | string, maxFractionDigits = 2):
   return new Intl.NumberFormat('en-IN', {
     maximumFractionDigits: maxFractionDigits,
   }).format(parsedNum);
+}
+
+export function getSectoralTrend(data: NASRecord[], baseYear = '2011-12') {
+  const filtered = data.filter(r => 
+    r.indicator === 'Gross Value Added' && r.base_year === baseYear && 
+    r.frequency === 'Annual' && r.unit === '₹ Crore' && r.industry && 
+    r.industry !== 'Total Gross Value Added' && !r.industry.includes('Total')
+  );
+  
+  const years = [...new Set(filtered.map(r => r.year_int))].sort();
+  const allIndustries = [...new Set(filtered.map(r => r.industry))];
+  const shortNames: Record<string, string> = {};
+  allIndustries.forEach(ind => {
+    shortNames[ind] = ind.length > 25 ? ind.substring(0, 23) + '...' : ind;
+  });
+  
+  const trends = years.map(y => {
+    const yearData: Record<string, string | number> = { year: y.toString(), year_int: y };
+    filtered.filter(r => r.year_int === y).forEach(r => {
+      yearData[shortNames[r.industry]] = r.constant_price / 1e5;
+    });
+    return yearData;
+  });
+  
+  return { trends, industries: Object.values(shortNames) };
+}
+
+export function getSectoralYoY(data: NASRecord[], baseYear = '2011-12', targetYear?: number) {
+  const filtered = data.filter(r => 
+    r.indicator === 'Gross Value Added' && r.base_year === baseYear && 
+    r.frequency === 'Annual' && r.unit === '₹ Crore' && r.industry && 
+    r.industry !== 'Total Gross Value Added' && !r.industry.includes('Total')
+  );
+  
+  const yt = targetYear || Math.max(...filtered.map(r => r.year_int));
+  
+  const currentYearData = filtered.filter(r => r.year_int === yt);
+  const prevYearData = filtered.filter(r => r.year_int === yt - 1);
+  
+  return currentYearData.map(c => {
+    const p = prevYearData.find(r => r.industry === c.industry);
+    const shortInd = c.industry.length > 30 ? c.industry.substring(0, 28) + '...' : c.industry;
+    let yoy = 0;
+    if (p && p.constant_price > 0) {
+      yoy = ((c.constant_price - p.constant_price) / p.constant_price) * 100;
+    }
+    return {
+      industry: shortInd,
+      fullName: c.industry,
+      yoy
+    };
+  }).sort((a, b) => b.yoy - a.yoy);
+}
+
+export function getTradeBalance(data: NASRecord[], baseYear = '2011-12') {
+  const exportsData = data.filter(r => r.indicator === 'Export of Goods and Services' && r.base_year === baseYear && r.frequency === 'Annual' && r.unit === '₹ Crore');
+  const importsData = data.filter(r => r.indicator === 'Import of Goods and Services' && r.base_year === baseYear && r.frequency === 'Annual' && r.unit === '₹ Crore');
+  
+  const years = [...new Set([...exportsData.map(r => r.year_int), ...importsData.map(r => r.year_int)])].sort();
+  
+  return years.map(y => {
+    const exp = exportsData.find(r => r.year_int === y);
+    const imp = importsData.find(r => r.year_int === y);
+    
+    const exportVal = exp ? exp.current_price / 1e5 : 0;
+    const importVal = imp ? imp.current_price / 1e5 : 0;
+    
+    return {
+      year: y.toString(),
+      year_int: y,
+      exports: exportVal,
+      imports: -importVal,
+      balance: exportVal - importVal
+    };
+  });
+}
+
+export function getQuarterlySeasonality(data: NASRecord[], baseYear = '2011-12') {
+  const filtered = data.filter(r => 
+    r.indicator === 'Gross Domestic Product' && r.base_year === baseYear && 
+    r.frequency === 'Quarterly' && r.unit === '₹ Crore' && r.quarter
+  );
+  
+  const years = [...new Set(filtered.map(r => r.year_int))].sort();
+  
+  return years.map(y => {
+    const yearData = filtered.filter(r => r.year_int === y);
+    const q1 = yearData.find(r => r.quarter === 'Q1');
+    const q2 = yearData.find(r => r.quarter === 'Q2');
+    const q3 = yearData.find(r => r.quarter === 'Q3');
+    const q4 = yearData.find(r => r.quarter === 'Q4');
+    
+    return {
+      year: y.toString(),
+      year_int: y,
+      Q1: q1 ? q1.constant_price / 1e5 : null,
+      Q2: q2 ? q2.constant_price / 1e5 : null,
+      Q3: q3 ? q3.constant_price / 1e5 : null,
+      Q4: q4 ? q4.constant_price / 1e5 : null,
+    };
+  }).filter(y => y.Q1 !== null || y.Q2 !== null || y.Q3 !== null || y.Q4 !== null);
 }
