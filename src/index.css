@@ -119,6 +119,10 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-snap-type: y proximity;
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'Space Grotesk', system-ui, sans-serif;
@@ -226,6 +230,8 @@
     cursor: pointer;
     will-change: transform;
     transition: box-shadow 0.2s ease;
+    scroll-snap-align: start;
+    scroll-margin-top: 120px;
   }
   .b-card:hover {
     box-shadow: 12px 12px 0 var(--ink);

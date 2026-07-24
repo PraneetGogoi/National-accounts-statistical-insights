@@ -23,6 +23,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [showForecast, setShowForecast] = useState(true);
 
+  const [hoveredLegend, setHoveredLegend] = useState<string | null>(null);
+
   useEffect(() => {
     Promise.all([
       loadNASData(),
@@ -375,11 +377,29 @@ export default function Dashboard() {
               <XAxis dataKey="year_int" stroke={inkColor} fontSize={11} fontFamily='"IBM Plex Mono", monospace' />
               <YAxis stroke={inkColor} fontSize={11} tickFormatter={v => `₹${formatIndianNumber(Math.abs(v), 0)}`} fontFamily='"IBM Plex Mono", monospace' />
               <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(Math.abs(v), 1)} K Cr`, '']} />
-              <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+              <Legend content={(props) => {
+                const { payload } = props;
+                if (!payload) return null;
+                return (
+                  <ul className="flex justify-center gap-4 mt-2">
+                    {payload.map((entry: any, index: number) => (
+                      <li 
+                        key={`item-${index}`} 
+                        className="pill magnetic flex items-center gap-2 text-xs font-mono font-bold"
+                        onMouseEnter={() => setHoveredLegend(entry.dataKey)}
+                        onMouseLeave={() => setHoveredLegend(null)}
+                      >
+                        <div className="w-3 h-3 border border-ink" style={{ backgroundColor: entry.color }}></div>
+                        {entry.value}
+                      </li>
+                    ))}
+                  </ul>
+                );
+              }} />
               <ReferenceLine y={0} stroke={inkColor} />
-              <Bar animationDuration={ANIM_DUR} dataKey="exports" name="Exports" fill={voltColor} stroke={inkColor} strokeWidth={2} stackId="stack" />
-              <Bar animationDuration={ANIM_DUR} dataKey="imports" name="Imports" fill={debitColor} stroke={inkColor} strokeWidth={2} stackId="stack" />
-              <Line animationDuration={ANIM_DUR} type="monotone" dataKey="balance" name="Trade Balance" stroke={inkColor} strokeWidth={3} dot={{ fill: paperColor, stroke: inkColor, strokeWidth: 2, r: 4 }} />
+              <Bar animationDuration={ANIM_DUR} dataKey="exports" name="Exports" fill={voltColor} stroke={inkColor} strokeWidth={2} stackId="stack" fillOpacity={hoveredLegend && hoveredLegend !== 'exports' ? 0.2 : 1} />
+              <Bar animationDuration={ANIM_DUR} dataKey="imports" name="Imports" fill={debitColor} stroke={inkColor} strokeWidth={2} stackId="stack" fillOpacity={hoveredLegend && hoveredLegend !== 'imports' ? 0.2 : 1} />
+              <Line animationDuration={ANIM_DUR} type="step" dataKey="balance" name="Net Balance" stroke={inkColor} strokeWidth={4} dot={{ r: 4, strokeWidth: 2, fill: paperColor, stroke: inkColor }} opacity={hoveredLegend && hoveredLegend !== 'balance' ? 0.2 : 1} />
             </ComposedChart>
           </ResponsiveContainer>
         </BrutalistCard>
