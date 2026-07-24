@@ -50,12 +50,14 @@ export interface BacktestData {
 let cachedData: NASRecord[] | null = null;
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+const USE_MOCK = import.meta.env.PROD && !import.meta.env.VITE_API_URL;
 
 export async function loadNASData(): Promise<NASRecord[]> {
   if (cachedData) return cachedData;
   
   try {
-    const res = await fetch(`${API_BASE}/data/all`);
+    const url = USE_MOCK ? "/mock/data.json" : `${API_BASE}/data/all`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch data");
     const records: NASRecord[] = await res.json();
     cachedData = records;
@@ -68,7 +70,8 @@ export async function loadNASData(): Promise<NASRecord[]> {
 
 export async function fetchIngestionStatus(): Promise<IngestionStatus | null> {
   try {
-    const res = await fetch(`${API_BASE}/data/status`);
+    const url = USE_MOCK ? "/mock/status.json" : `${API_BASE}/data/status`;
+    const res = await fetch(url);
     if (!res.ok) return null;
     return await res.json();
   } catch {
@@ -78,7 +81,8 @@ export async function fetchIngestionStatus(): Promise<IngestionStatus | null> {
 
 export async function fetchForecast(periods = 4): Promise<ForecastData[]> {
   try {
-    const res = await fetch(`${API_BASE}/forecast/gdp?periods=${periods}`);
+    const url = USE_MOCK ? "/mock/forecast.json" : `${API_BASE}/forecast/gdp?periods=${periods}`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     const data = await res.json();
     return data.forecast || [];
@@ -89,7 +93,8 @@ export async function fetchForecast(periods = 4): Promise<ForecastData[]> {
 
 export async function fetchBacktest(): Promise<BacktestData | null> {
   try {
-    const res = await fetch(`${API_BASE}/forecast/backtest`);
+    const url = USE_MOCK ? "/mock/backtest.json" : `${API_BASE}/forecast/backtest`;
+    const res = await fetch(url);
     if (!res.ok) return null;
     return await res.json();
   } catch {
