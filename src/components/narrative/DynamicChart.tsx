@@ -31,29 +31,37 @@ export function DynamicChart({ activeChapter, data }: DynamicChartProps) {
   const debitColor = 'var(--debit)';
   const CATEGORICAL_COLORS = [voltColor, creditColor, debitColor, "#a855f7", "#ec4899", "#f97316", "#eab308", "#0ea5e9"];
 
+  const getSectorColor = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('agriculture') || n.includes('crop') || n.includes('livestock')) return voltColor;
+    if (n.includes('manufacturing') || n.includes('mining') || n.includes('electricity') || n.includes('construction')) return '#f97316'; // orange
+    return '#3b82f6'; // blue for services
+  };
+
   const renderChart = () => {
     switch (activeChapter) {
       case 0:
-      case 1:
         return (
-          <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8">
+          <motion.div key="hero" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8 relative">
+            <div className="absolute top-4 left-8 font-heading font-bold text-sm uppercase opacity-50 z-10">The Long Arc: 30 Years of GDP (Current vs Constant)</div>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.gdpTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} vertical={false} />
                 <XAxis dataKey="year_int" stroke={inkColor} fontSize={12} tickMargin={10} axisLine={false} tickLine={false} fontFamily='"IBM Plex Mono", monospace' />
                 <YAxis stroke={inkColor} fontSize={12} tickMargin={10} axisLine={false} tickLine={false} tickFormatter={v => `₹${formatIndianNumber(v, 0)}`} fontFamily='"IBM Plex Mono", monospace' />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Cr`, '']} />
-                {activeChapter === 1 && <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />}
-                <Line type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={activeChapter === 0 ? 3 : 5} dot={activeChapter === 1 ? { r: 5, fill: paperColor, stroke: inkColor, strokeWidth: 2 } : false} activeDot={activeChapter === 1 ? { r: 8 } : false} />
-                <Line type="monotone" dataKey="constant" name="Constant Price" stroke={inkColor} strokeWidth={activeChapter === 0 ? 2 : 3} strokeDasharray="5 5" dot={activeChapter === 1 ? { r: 4, fill: paperColor, stroke: inkColor, strokeWidth: 2 } : false} />
+                <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px' }} />
+                <Line type="monotone" dataKey="current" name="Current Price" stroke={voltColor} strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="constant" name="Constant Price" stroke={inkColor} strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </motion.div>
         );
       
-      case 2:
+      case 1:
         return (
-          <motion.div key="shock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8">
+          <motion.div key="shock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8 relative">
+            <div className="absolute top-4 left-8 font-heading font-bold text-sm uppercase opacity-50 z-10">The Shock: GDP YoY Growth Rate</div>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.growthRates}>
                 <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} vertical={false} />
@@ -62,7 +70,7 @@ export function DynamicChart({ activeChapter, data }: DynamicChartProps) {
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${formatIndianNumber(v, 2)}%`, 'Growth']} />
                 <Bar dataKey="growth" stroke={inkColor} strokeWidth={2}>
                   {data.growthRates.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.growth < 0 ? debitColor : inkColor} opacity={entry.year_int === 2020 || entry.year_int === 2021 ? 1 : 0.3} />
+                    <Cell key={`cell-${index}`} fill={entry.growth < 0 ? debitColor : (entry.year_int === 2021 || entry.year_int === 2022 ? voltColor : inkColor)} opacity={entry.year_int >= 2020 && entry.year_int <= 2022 ? 1 : 0.3} />
                   ))}
                 </Bar>
               </BarChart>
@@ -70,18 +78,24 @@ export function DynamicChart({ activeChapter, data }: DynamicChartProps) {
           </motion.div>
         );
         
-      case 3:
+      case 2:
         return (
-          <motion.div key="rebound" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8">
+          <motion.div key="rebound" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8 relative">
+            <div className="absolute top-4 left-8 font-heading font-bold text-sm uppercase opacity-50 z-10 flex gap-4">
+              <span>The Rebound: 2022 Sectoral GVA Breakdown</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block" style={{backgroundColor: voltColor}}></span> Agriculture</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block" style={{backgroundColor: '#f97316'}}></span> Industry</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 inline-block" style={{backgroundColor: '#3b82f6'}}></span> Services</span>
+            </div>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.sectoralGVA} layout="vertical" margin={{ left: 20 }}>
+              <BarChart data={data.sectoralGVA} layout="vertical" margin={{ left: 20, top: 30 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} horizontal={false} />
                 <XAxis type="number" stroke={inkColor} fontSize={12} tickMargin={10} axisLine={false} tickLine={false} tickFormatter={v => `₹${formatIndianNumber(v, 0)}K`} fontFamily='"IBM Plex Mono", monospace' />
-                <YAxis type="category" dataKey="industry" width={140} stroke={inkColor} fontSize={11} axisLine={false} tickLine={false} fontFamily='"IBM Plex Mono", monospace' />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Crore`, 'GVA']} />
+                <YAxis type="category" dataKey="industry" width={160} stroke={inkColor} fontSize={11} axisLine={false} tickLine={false} fontFamily='"IBM Plex Mono", monospace' />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Crore`, 'GVA 2022']} />
                 <Bar dataKey="value" stroke={inkColor} strokeWidth={2}>
-                  {data.sectoralGVA.map((_, i) => (
-                    <Cell key={i} fill={CATEGORICAL_COLORS[i % CATEGORICAL_COLORS.length]} />
+                  {data.sectoralGVA.map((entry, i) => (
+                    <Cell key={i} fill={getSectorColor(entry.fullName)} />
                   ))}
                 </Bar>
               </BarChart>
@@ -89,26 +103,28 @@ export function DynamicChart({ activeChapter, data }: DynamicChartProps) {
           </motion.div>
         );
 
-      case 4:
+      case 3:
         return (
-          <motion.div key="seasonality" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8">
+          <motion.div key="seasonality" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8 relative">
+            <div className="absolute top-4 left-8 font-heading font-bold text-sm uppercase opacity-50 z-10">Seasonality: Quarterly GDP Spikes</div>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.quarterlyGDP}>
+              <AreaChart data={data.quarterlyGDP.slice(-20)}>
                 <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} vertical={false} />
                 <XAxis dataKey="label" stroke={inkColor} fontSize={11} tickMargin={15} angle={-45} textAnchor="end" height={70} axisLine={false} tickLine={false} fontFamily='"IBM Plex Mono", monospace' />
                 <YAxis stroke={inkColor} fontSize={12} tickMargin={10} axisLine={false} tickLine={false} tickFormatter={v => `₹${formatIndianNumber(v, 0)}`} fontFamily='"IBM Plex Mono", monospace' />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`₹${formatIndianNumber(v, 1)} K Cr`, '']} />
-                <Area type="monotone" dataKey="current" fill={voltColor} stroke={inkColor} fillOpacity={0.2} strokeWidth={3} />
-                <Area type="monotone" dataKey="constant" fill={inkColor} stroke={inkColor} fillOpacity={0.1} strokeDasharray="4 4" strokeWidth={2} />
+                <Legend wrapperStyle={{ fontFamily: '"IBM Plex Mono", monospace', fontSize: '12px', marginTop: '10px' }} />
+                <Area type="monotone" dataKey="current" name="Current Price" fill={voltColor} stroke={inkColor} fillOpacity={0.2} strokeWidth={3} />
+                <Area type="monotone" dataKey="constant" name="Constant Price" fill={inkColor} stroke={inkColor} fillOpacity={0.1} strokeDasharray="4 4" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </motion.div>
         );
 
-      case 5:
-      case 6:
+      case 4:
         return (
-          <motion.div key="trade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8">
+          <motion.div key="trade" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }} className="w-full h-full p-4 md:p-8 relative">
+            <div className="absolute top-4 left-8 font-heading font-bold text-sm uppercase opacity-50 z-10">Trade Balance: Imports vs Exports</div>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.expenditure}>
                 <CartesianGrid strokeDasharray="3 3" stroke={inkColor} opacity={0.2} vertical={false} />

@@ -126,7 +126,7 @@ export function getSectoralGVA(data: NASRecord[], baseYear = '2011-12', yearInt?
   return filtered
     .filter(r => r.year_int === targetYear)
     .reduce((acc, r) => {
-      const existing = acc.find(x => x.industry === r.industry);
+      const existing = acc.find(x => x.fullName === r.industry);
       if (!existing) {
         acc.push({ industry: r.industry.length > 30 ? r.industry.substring(0, 28) + '...' : r.industry, fullName: r.industry, value: r.current_price / 1e5 });
       }
