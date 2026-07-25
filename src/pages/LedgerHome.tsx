@@ -45,7 +45,10 @@ export default function LedgerHome() {
           <div className="flex flex-wrap items-end gap-5 mt-10">
             <span className="font-heading font-bold text-[clamp(3rem,9vw,7rem)] leading-[0.8]">₹</span>
             
-            {kpiData ? <AnimatedDigitStrip value={Number(kpiData.gdpCurrent)} /> : <div className="h-[11rem]" />}
+            <div className="relative inline-block z-10">
+              <img src="/chibi-accountant.png" alt="" className="absolute -top-16 -right-16 w-32 h-32 object-contain mix-blend-multiply opacity-70 z-[-1] rotate-[15deg] pointer-events-none" />
+              {kpiData ? <AnimatedDigitStrip value={Number(kpiData.gdpCurrent)} /> : <div className="h-[11rem]" />}
+            </div>
             
             <span className="font-numbers font-semibold text-[clamp(1.2rem,2.4vw,1.8rem)] self-end mb-3">
               L&nbsp;CR
