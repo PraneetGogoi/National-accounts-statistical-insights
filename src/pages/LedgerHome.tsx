@@ -46,6 +46,7 @@ export default function LedgerHome() {
             <span className="font-heading font-bold text-[clamp(3rem,9vw,7rem)] leading-[0.8]">₹</span>
             
             <div className="relative inline-block z-10 chibi-hero">
+              <div className="speech-bubble -top-12 -right-32 rotate-[10deg]">VERIFIED ✓</div>
               {kpiData ? <AnimatedDigitStrip value={Number(kpiData.gdpCurrent)} /> : <div className="h-[11rem]" />}
             </div>
             
@@ -54,13 +55,13 @@ export default function LedgerHome() {
             </span>
 
             {kpiData && (
-              <span className={`delta-chip ${Number(kpiData.yoyGrowth) >= 0 ? 'up' : 'down'}`}>
+              <span className={`delta-chip relative inline-block chibi-thumbsup ${Number(kpiData.yoyGrowth) >= 0 ? 'up' : 'down'}`}>
                 {Number(kpiData.yoyGrowth) >= 0 ? '+' : ''}{kpiData.yoyGrowth}% YoY
               </span>
             )}
           </div>
           
-          <div className="font-numbers text-sm uppercase tracking-wide mt-3 opacity-70">
+          <div className="font-numbers text-sm uppercase tracking-wide mt-3 opacity-70 relative inline-block chibi-explorer ml-16">
             LATEST ANNUAL GDP (CURRENT PRICES) — BASE YEAR 2011-12
           </div>
 

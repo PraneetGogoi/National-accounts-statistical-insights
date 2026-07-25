@@ -148,10 +148,27 @@
     background-size: contain;
     background-repeat: no-repeat;
     mix-blend-mode: multiply;
-    opacity: 0.7;
+    opacity: 0.8;
     z-index: -1;
     transform: rotate(15deg);
     pointer-events: none;
+    filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.15));
+  }
+
+  /* Tape strip for chibi-hero */
+  .chibi-hero::after {
+    content: "";
+    position: absolute;
+    top: -4.5rem;
+    right: 0rem;
+    width: 2.5rem;
+    height: 0.8rem;
+    background-color: rgba(240, 240, 230, 0.9);
+    border: 1px solid var(--ink);
+    z-index: 10;
+    transform: rotate(-10deg);
+    pointer-events: none;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
   }
 
   .chibi-footer::before {
@@ -165,9 +182,10 @@
     background-size: contain;
     background-repeat: no-repeat;
     mix-blend-mode: multiply;
-    opacity: 0.5;
+    opacity: 0.6;
     z-index: -1;
     pointer-events: none;
+    filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.15));
   }
 
   .chibi-explorer::before {
@@ -181,10 +199,27 @@
     background-size: contain;
     background-repeat: no-repeat;
     mix-blend-mode: multiply;
-    opacity: 0.6;
+    opacity: 0.7;
     z-index: -1;
     transform: rotate(-15deg);
     pointer-events: none;
+    filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.15));
+  }
+
+  /* Tape for chibi-explorer */
+  .chibi-explorer::after {
+    content: "";
+    position: absolute;
+    top: -3.2rem;
+    left: -2rem;
+    width: 2rem;
+    height: 0.7rem;
+    background-color: rgba(240, 240, 230, 0.9);
+    border: 1px solid var(--ink);
+    z-index: 10;
+    transform: rotate(5deg);
+    pointer-events: none;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
   }
 
   .chibi-industry::before {
@@ -238,15 +273,106 @@
     pointer-events: none;
   }
 
+  .chibi-industry::before,
+  .chibi-seasons::before,
+  .chibi-narrative::before {
+    /* Keep these without tape for restraint, just shadow */
+    filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.15));
+  }
+
+  .chibi-thumbsup::before {
+    content: "";
+    position: absolute;
+    top: -4rem;
+    right: -5rem;
+    width: 6rem;
+    height: 6rem;
+    background-image: url('/chibi-thumbsup.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.8;
+    z-index: -1;
+    transform: rotate(5deg);
+    pointer-events: none;
+    filter: drop-shadow(4px 4px 2px rgba(0,0,0,0.15));
+  }
+
+  /* Tape for thumbs up */
+  .chibi-thumbsup::after {
+    content: "";
+    position: absolute;
+    top: -4rem;
+    right: -2rem;
+    width: 2rem;
+    height: 0.8rem;
+    background-color: rgba(240, 240, 230, 0.9);
+    border: 1px solid var(--ink);
+    z-index: 10;
+    transform: rotate(15deg);
+    pointer-events: none;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.1);
+  }
+
   /* Dark mode inversion for chibi backgrounds */
   .dark .chibi-hero::before,
   .dark .chibi-footer::before,
   .dark .chibi-explorer::before,
   .dark .chibi-industry::before,
   .dark .chibi-seasons::before,
-  .dark .chibi-narrative::before {
-    filter: invert(1);
+  .dark .chibi-narrative::before,
+  .dark .chibi-thumbsup::before {
+    filter: invert(1) drop-shadow(4px 4px 2px rgba(255,255,255,0.15));
     mix-blend-mode: screen;
+  }
+
+  .dark .chibi-hero::after,
+  .dark .chibi-explorer::after,
+  .dark .chibi-thumbsup::after {
+    background-color: rgba(20, 20, 25, 0.9);
+    box-shadow: 2px 2px 0 rgba(255,255,255,0.1);
+  }
+
+  /* Ledger Paper Background Texture */
+  .bg-paper {
+    background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(0,0,0,0.06) 31px, rgba(0,0,0,0.06) 32px);
+  }
+  .dark .bg-paper {
+    background-image: repeating-linear-gradient(transparent, transparent 31px, rgba(255,255,255,0.04) 31px, rgba(255,255,255,0.04) 32px);
+  }
+
+  /* Speech Bubble */
+  .speech-bubble {
+    position: absolute;
+    background: var(--paper);
+    border: 3px solid var(--ink);
+    padding: 0.5rem 1rem;
+    font-family: 'Kalam', 'Comic Sans MS', cursive, sans-serif;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transform: rotate(-5deg);
+    box-shadow: 4px 4px 0 var(--ink);
+    z-index: 20;
+    pointer-events: none;
+  }
+  .speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 20px;
+    border-width: 10px 10px 0 0;
+    border-style: solid;
+    border-color: var(--ink) transparent transparent transparent;
+  }
+  .speech-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 22px;
+    border-width: 8px 8px 0 0;
+    border-style: solid;
+    border-color: var(--paper) transparent transparent transparent;
+    z-index: 1;
   }
   ::selection {
     background: var(--ink);
