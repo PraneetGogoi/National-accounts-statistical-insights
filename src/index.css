@@ -187,10 +187,64 @@
     pointer-events: none;
   }
 
+  .chibi-industry::before {
+    content: "";
+    position: absolute;
+    top: -5rem;
+    right: -2rem;
+    width: 7rem;
+    height: 7rem;
+    background-image: url('/chibi-industry.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+    z-index: -1;
+    transform: rotate(10deg);
+    pointer-events: none;
+  }
+
+  .chibi-seasons::before {
+    content: "";
+    position: absolute;
+    bottom: -3rem;
+    right: -4rem;
+    width: 8rem;
+    height: 8rem;
+    background-image: url('/chibi-seasons.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.65;
+    z-index: -1;
+    transform: rotate(-5deg);
+    pointer-events: none;
+  }
+
+  .chibi-narrative::before {
+    content: "";
+    position: absolute;
+    top: 2rem;
+    left: -6rem;
+    width: 7rem;
+    height: 7rem;
+    background-image: url('/chibi-narrative.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+    z-index: -1;
+    transform: rotate(-10deg);
+    pointer-events: none;
+  }
+
   /* Dark mode inversion for chibi backgrounds */
   .dark .chibi-hero::before,
   .dark .chibi-footer::before,
-  .dark .chibi-explorer::before {
+  .dark .chibi-explorer::before,
+  .dark .chibi-industry::before,
+  .dark .chibi-seasons::before,
+  .dark .chibi-narrative::before {
     filter: invert(1);
     mix-blend-mode: screen;
   }

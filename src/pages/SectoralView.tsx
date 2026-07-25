@@ -61,11 +61,13 @@ export default function SectoralView() {
   return (
     <div className="w-full px-[6vw] py-12 bg-transparent text-ink pb-32 relative z-10">
       <div className="mb-12 pt-8">
-        <div className="eyebrow mb-6">INDUSTRY BREAKDOWN</div>
-        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Sectoral View</h1>
-        <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
-          Industry-wise Gross Value Added analysis and composition
-        </p>
+        <div className="relative inline-block chibi-industry">
+          <div className="eyebrow mb-6">INDUSTRY BREAKDOWN</div>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Sectoral View</h1>
+          <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
+            Industry-wise Gross Value Added analysis and composition
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 mb-12 items-center">

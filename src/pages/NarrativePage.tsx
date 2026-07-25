@@ -12,7 +12,7 @@ export default function NarrativePage() {
         <p className="font-medium mb-8 max-w-lg border-l-[3px] border-ink pl-4 text-left">
           Explore all the raw data, filter by base years, and dive into specific sectors in our interactive analytics dashboard.
         </p>
-        <Link to="/dashboard">
+        <Link to="/dashboard" className="relative inline-block chibi-narrative">
           <BrutalistPill className="text-lg px-8 py-3">
             OPEN FULL DASHBOARD →
           </BrutalistPill>

@@ -91,11 +91,13 @@ export default function SeasonalityAnalysis() {
   return (
     <div className="w-full px-[6vw] py-12 bg-transparent text-ink pb-32 relative z-10">
       <div className="mb-12 pt-8">
-        <div className="eyebrow mb-6">TIME-SERIES PATTERNS</div>
-        <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Seasonality Analysis</h1>
-        <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
-          Discover repeating cyclical trends and quarterly growth dynamics.
-        </p>
+        <div className="relative inline-block chibi-seasons">
+          <div className="eyebrow mb-6">TIME-SERIES PATTERNS</div>
+          <h1 className="text-4xl md:text-5xl font-heading font-bold uppercase tracking-tighter mb-4">Seasonality Analysis</h1>
+          <p className="text-xl font-medium max-w-[40ch] border-l-[3px] border-ink pl-5 opacity-80">
+            Discover repeating cyclical trends and quarterly growth dynamics.
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-4 mb-12">
