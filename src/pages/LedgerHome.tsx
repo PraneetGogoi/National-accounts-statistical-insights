@@ -46,7 +46,6 @@ export default function LedgerHome() {
             <span className="font-heading font-bold text-[clamp(3rem,9vw,7rem)] leading-[0.8]">₹</span>
             
             <div className="relative inline-block z-10 chibi-hero">
-              <div className="speech-bubble -top-24 -right-12 rotate-[5deg]">VERIFIED ✓</div>
               {kpiData ? <AnimatedDigitStrip value={Number(kpiData.gdpCurrent)} /> : <div className="h-[11rem]" />}
             </div>
             
