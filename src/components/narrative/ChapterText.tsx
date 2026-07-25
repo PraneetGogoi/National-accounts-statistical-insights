@@ -17,11 +17,6 @@ export function ChapterText({ id, title, text, isActive, onHover }: ChapterTextP
       onMouseEnter={onHover}
       onClick={onHover}
     >
-      {/* Connecting line to the previous card */}
-      {id > 0 && (
-        <div className={`absolute top-12 -left-1/2 w-full h-[3px] z-0 transition-colors duration-300 ${isActive ? 'bg-ink' : 'bg-ink/20 border-t border-b border-ink/10'}`} />
-      )}
-      
       <motion.div
         animate={{ 
           opacity: isActive ? 1 : 0.6,
