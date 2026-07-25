@@ -195,10 +195,9 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3 bg-paper border-4 border-ink p-4 shadow-[4px_4px_0_var(--ink)] relative z-10">
+        <div className="flex items-center gap-3 bg-paper border-4 border-ink p-4 shadow-[4px_4px_0_var(--ink)] relative z-10 chibi-explorer">
           <div className="text-sm font-bold font-heading uppercase">Show Model Accuracy</div>
           <Switch checked={showForecast} onCheckedChange={setShowForecast} />
-          <img src="/chibi-magnifying.png" alt="Chibi magnifying" className="absolute -left-16 -top-12 w-24 h-24 object-contain mix-blend-multiply opacity-60 z-[-1] pointer-events-none -rotate-[15deg]" />
         </div>
       </div>
 

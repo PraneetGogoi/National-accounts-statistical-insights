@@ -130,6 +130,70 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Archivo Black', 'Inter', system-ui, sans-serif;
   }
+  .delta-chip.down {
+    background: var(--debit);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* Chibi Background Integrations */
+  .chibi-hero::before {
+    content: "";
+    position: absolute;
+    top: -4rem;
+    right: -4rem;
+    width: 8rem;
+    height: 8rem;
+    background-image: url('/chibi-accountant.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.7;
+    z-index: -1;
+    transform: rotate(15deg);
+    pointer-events: none;
+  }
+
+  .chibi-footer::before {
+    content: "";
+    position: absolute;
+    bottom: 1rem;
+    right: 1.5rem;
+    width: 6rem;
+    height: 6rem;
+    background-image: url('/chibi-sleepy.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.5;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .chibi-explorer::before {
+    content: "";
+    position: absolute;
+    top: -3rem;
+    left: -4rem;
+    width: 6rem;
+    height: 6rem;
+    background-image: url('/chibi-magnifying.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+    z-index: -1;
+    transform: rotate(-15deg);
+    pointer-events: none;
+  }
+
+  /* Dark mode inversion for chibi backgrounds */
+  .dark .chibi-hero::before,
+  .dark .chibi-footer::before,
+  .dark .chibi-explorer::before {
+    filter: invert(1);
+    mix-blend-mode: screen;
+  }
   ::selection {
     background: var(--ink);
     color: var(--paper);

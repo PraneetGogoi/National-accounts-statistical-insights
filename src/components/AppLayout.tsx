@@ -55,10 +55,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
       
-      <footer className="font-numbers text-sm flex justify-between px-6 py-8 mt-20 opacity-70 relative">
+      <footer className="font-numbers text-sm flex justify-between px-6 py-8 mt-20 opacity-70 relative chibi-footer">
         <span>NAS INDIA — NATIONAL ACCOUNTS STATISTICS</span>
         <span></span>
-        <img src="/chibi-sleepy.png" alt="Sleepy chibi" className="absolute right-6 bottom-4 w-24 h-24 object-contain mix-blend-multiply opacity-50 pointer-events-none" />
       </footer>
     </div>
   );
