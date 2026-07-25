@@ -231,20 +231,17 @@ export function getSectoralTrend(data: NASRecord[], baseYear = '2011-12') {
   
   const years = [...new Set(filtered.map(r => r.year_int))].sort();
   const allIndustries = [...new Set(filtered.map(r => r.industry))];
-  const shortNames: Record<string, string> = {};
-  allIndustries.forEach(ind => {
-    shortNames[ind] = ind.length > 25 ? ind.substring(0, 23) + '...' : ind;
-  });
   
   const trends = years.map(y => {
     const yearData: Record<string, string | number> = { year: y.toString(), year_int: y };
     filtered.filter(r => r.year_int === y).forEach(r => {
-      yearData[shortNames[r.industry]] = r.constant_price / 1e5;
+      // Use exact full industry name as the key
+      yearData[r.industry] = r.constant_price / 1e5;
     });
     return yearData;
   });
   
-  return { trends, industries: Object.values(shortNames) };
+  return { trends, industries: allIndustries };
 }
 
 export function getSectoralYoY(data: NASRecord[], baseYear = '2011-12', targetYear?: number) {
@@ -261,17 +258,25 @@ export function getSectoralYoY(data: NASRecord[], baseYear = '2011-12', targetYe
   
   return currentYearData.map(c => {
     const p = prevYearData.find(r => r.industry === c.industry);
-    const shortInd = c.industry.length > 30 ? c.industry.substring(0, 28) + '...' : c.industry;
+    // Don't truncate here, keep the exact industry name
     let yoy = 0;
     if (p && p.constant_price > 0) {
       yoy = ((c.constant_price - p.constant_price) / p.constant_price) * 100;
     }
     return {
-      industry: shortInd,
+      industry: c.industry, // Exact name matching AreaChart keys
       fullName: c.industry,
       yoy
     };
   }).sort((a, b) => b.yoy - a.yoy);
+}
+
+export function getTopSectors(data: NASRecord[], baseYear = '2011-12', targetYear?: number) {
+  const yoyData = getSectoralYoY(data, baseYear, targetYear);
+  return {
+    growing: yoyData.filter(d => d.yoy > 0).slice(0, 5),
+    contracting: yoyData.filter(d => d.yoy < 0).reverse().slice(0, 5)
+  };
 }
 
 export function getTradeBalance(data: NASRecord[], baseYear = '2011-12') {

@@ -10,6 +10,7 @@ import NarrativePage from "./pages/NarrativePage";
 import Explorer from "./components/explorer/Explorer";
 import GDPAnalysis from "./pages/GDPAnalysis";
 import SectoralView from "./pages/SectoralView";
+import SectorDrillDown from "./pages/SectorDrillDown";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="/dashboard" element={<Explorer />} />
               <Route path="/gdp" element={<GDPAnalysis />} />
               <Route path="/sectors" element={<SectoralView />} />
+              <Route path="/sectors/:sectorId" element={<SectorDrillDown />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
