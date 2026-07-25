@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from "react";
+import { ReactNode, useRef, useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -7,6 +7,53 @@ import { Sun, Moon } from "lucide-react";
 import { GlobalGooField } from "./ui/brutal/GlobalGooField";
 
 gsap.registerPlugin(useGSAP);
+
+const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
+
+function DynamicLogo() {
+  const finalWord = "LEDGER";
+  const [text, setText] = useState(finalWord);
+  const [isHovering, setIsHovering] = useState(false);
+
+  useEffect(() => {
+    if (!isHovering) {
+      setText(finalWord);
+      return;
+    }
+    
+    let iterations = 0;
+    
+    const interval = setInterval(() => {
+      setText(prev => 
+        prev.split("").map((_, index) => {
+          if (index < iterations) {
+            return finalWord[index];
+          }
+          return CHARS[Math.floor(Math.random() * CHARS.length)];
+        }).join("")
+      );
+      
+      iterations += 1/3;
+      if (iterations >= finalWord.length) {
+        clearInterval(interval);
+        setText(finalWord);
+      }
+    }, 40);
+    
+    return () => clearInterval(interval);
+  }, [isHovering]);
+
+  return (
+    <NavLink 
+      to="/" 
+      className="flex items-center"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      NAS<span className="text-volt mx-[2px] animate-pulse">/</span>{text}
+    </NavLink>
+  );
+}
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const mastheadRef = useRef<HTMLDivElement>(null);
@@ -37,8 +84,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         ref={mastheadRef}
         className="fixed top-0 left-0 right-0 z-50 flex justify-between items-center px-6 py-4 border-b-[3px] border-ink bg-paper"
       >
-        <div className="font-heading font-bold text-2xl tracking-tighter magnetic">
-          <NavLink to="/">NAS<span className="text-volt">/</span>LEDGER</NavLink>
+        <div className="font-heading font-bold text-2xl tracking-tighter magnetic inline-block cursor-pointer">
+          <DynamicLogo />
         </div>
         <nav className="flex gap-3 items-center">
           <NavLink to="/narrative" className="pill magnetic">001 / NARRATIVE</NavLink>
