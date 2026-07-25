@@ -9,44 +9,63 @@ import { GlobalGooField } from "./ui/brutal/GlobalGooField";
 gsap.registerPlugin(useGSAP);
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*";
+const WORDS = ["LEDGER", "DATA", "INSIGHTS", "RECORDS", "MACRO"];
 
 function DynamicLogo() {
-  const finalWord = "LEDGER";
-  const [text, setText] = useState(finalWord);
+  const [wordIndex, setWordIndex] = useState(0);
+  const [text, setText] = useState(WORDS[0]);
   const [isHovering, setIsHovering] = useState(false);
 
+  // Scramble animation effect whenever wordIndex changes or hover state changes
   useEffect(() => {
-    if (!isHovering) {
-      setText(finalWord);
-      return;
+    let targetWord = WORDS[wordIndex];
+    if (isHovering) {
+      targetWord = "SYSTEM";
     }
     
     let iterations = 0;
     
     const interval = setInterval(() => {
-      setText(prev => 
-        prev.split("").map((_, index) => {
-          if (index < iterations) {
-            return finalWord[index];
+      setText(prev => {
+        // Handle varying lengths by padding or truncating during animation
+        const maxLength = Math.max(prev.length, targetWord.length);
+        const result = [];
+        
+        for (let i = 0; i < maxLength; i++) {
+          if (i < iterations) {
+            result.push(targetWord[i] || "");
+          } else {
+            result.push(CHARS[Math.floor(Math.random() * CHARS.length)]);
           }
-          return CHARS[Math.floor(Math.random() * CHARS.length)];
-        }).join("")
-      );
+        }
+        return result.join("");
+      });
       
-      iterations += 1/3;
-      if (iterations >= finalWord.length) {
+      iterations += 1/2; // Speed of decoding
+      if (iterations >= Math.max(text.length, targetWord.length)) {
         clearInterval(interval);
-        setText(finalWord);
+        setText(targetWord);
       }
     }, 40);
     
     return () => clearInterval(interval);
+  }, [wordIndex, isHovering]);
+
+  // Continuous loop to change words every 4 seconds
+  useEffect(() => {
+    if (isHovering) return;
+    
+    const cycle = setInterval(() => {
+      setWordIndex(prev => (prev + 1) % WORDS.length);
+    }, 3500);
+    
+    return () => clearInterval(cycle);
   }, [isHovering]);
 
   return (
     <NavLink 
       to="/" 
-      className="flex items-center"
+      className="flex items-center min-w-[180px]"
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
